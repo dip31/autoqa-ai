@@ -1,0 +1,9 @@
+flask
+flask-cors
+flask-jwt-extended
+bcrypt
+mysql-connector-python
+groq
+python-dotenv
+playwright
+requests
