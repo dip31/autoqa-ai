@@ -7,5 +7,4 @@ groq
 python-dotenv
 playwright
 requests
-pytest
-pytest-mock
+gunicorn
