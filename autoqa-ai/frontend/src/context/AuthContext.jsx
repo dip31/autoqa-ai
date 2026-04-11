@@ -12,7 +12,13 @@ export function AuthProvider({ children }) {
     if (token) {
       getMe()
         .then(res => setUser(res.data.user))
-        .catch(() => { localStorage.removeItem('token'); localStorage.removeItem('user'); })
+        .catch((err) => { 
+          if (err.response?.status === 401 || err.response?.status === 403) {
+            localStorage.removeItem('token'); 
+            localStorage.removeItem('user');
+            setUser(null);
+          }
+        })
         .finally(() => setLoading(false));
     } else {
       setLoading(false);

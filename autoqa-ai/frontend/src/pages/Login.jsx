@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { login } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -8,7 +8,7 @@ import {
 } from 'react-icons/md';
 import {
   RiRobot2Line, RiShieldCheckLine, RiCodeSSlashLine,
-  RiTestTubeLine, RiBarChartBoxLine,
+  RiTestTubeLine, RiBarChartBoxLine, RiGithubFill,
 } from 'react-icons/ri';
 
 const features = [
@@ -25,6 +25,22 @@ export default function Login() {
   const [showPwd, setShowPwd] = useState(false);
   const { signIn }  = useAuth();
   const navigate    = useNavigate();
+  const location    = useLocation();
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const token = params.get('token');
+    if (token) {
+      const user = {
+        id: params.get('id'),
+        username: params.get('username'),
+        email: params.get('email'),
+        role: params.get('role')
+      };
+      signIn(token, user);
+      navigate('/');
+    }
+  }, [location, signIn, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -36,6 +52,10 @@ export default function Login() {
     } catch (err) {
       setError(err.response?.data?.error || 'Login failed. Please try again.');
     } finally { setLoading(false); }
+  };
+
+  const handleGithubLogin = () => {
+    window.location.href = 'http://localhost:5000/auth/github/login';
   };
 
   return (
@@ -160,6 +180,19 @@ export default function Login() {
                 )}
               </button>
             </form>
+
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200" /></div>
+              <div className="relative flex justify-center"><span className="bg-white px-3 text-xs text-slate-400">Or continue with</span></div>
+            </div>
+
+            <button
+              onClick={handleGithubLogin}
+              className="w-full flex items-center justify-center gap-2 py-3 border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold rounded-xl text-sm transition-all"
+            >
+              <RiGithubFill className="text-xl" />
+              Continue with GitHub
+            </button>
 
             <div className="relative my-6">
               <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200" /></div>

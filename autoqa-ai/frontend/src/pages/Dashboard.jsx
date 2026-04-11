@@ -7,6 +7,7 @@ import {
   MdOutlineAutoAwesome, MdOutlineRadar, MdOutlineAssessment,
   MdArrowForward, MdOutlineChat, MdOutlineTrendingUp,
   MdOutlineSpeed, MdOutlineVerified, MdOutlineIntegrationInstructions,
+  MdSend,
 } from 'react-icons/md';
 import {
   RiRobot2Line, RiShieldCheckLine, RiCodeSSlashLine,
@@ -20,24 +21,19 @@ const features = [
     tags: ['Completeness Check', 'Edge Cases', 'AI Rewrite'],
   },
   {
-    to: '/code-review', icon: RiCodeSSlashLine, color: 'bg-violet-600', light: 'bg-violet-50 text-violet-700 border-violet-200',
-    title: 'Code Review', desc: 'Supports Python, Java, JavaScript, C++, React, NodeJS and more. Detects bugs, security issues, and returns optimized code.',
-    tags: ['8 Languages', 'Security Scan', 'Optimized Code'],
-  },
-  {
     to: '/website-testing', icon: RiGlobalLine, color: 'bg-cyan-600', light: 'bg-cyan-50 text-cyan-700 border-cyan-200',
     title: 'Website Testing', desc: 'Launches a real browser via Playwright, scans forms, buttons, and inputs, then generates functional and UI test cases automatically.',
     tags: ['Playwright', 'UI Tests', 'Auto-Generated'],
   },
   {
+    to: '/autonomous-qa', icon: RiRobot2Line, color: 'bg-emerald-600', light: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    title: 'Autonomous QA', desc: 'AI autonomously understands requirements, generates tests, executes browser flows, analyzes failures, predicts risks, and creates a report.',
+    tags: ['AI Orchestration', 'Self-Driven Testing', 'Smart Report'],
+  },
+  {
     to: '/test-generator', icon: MdOutlineAutoAwesome, color: 'bg-indigo-600', light: 'bg-indigo-50 text-indigo-700 border-indigo-200',
     title: 'Test Generator', desc: 'Paste a requirement or user story and get positive, negative, boundary, and UI test cases in a structured table format.',
     tags: ['4 Test Types', 'Table Format', 'Excel Export'],
-  },
-  {
-    to: '/risk-prediction', icon: MdOutlineRadar, color: 'bg-orange-500', light: 'bg-orange-50 text-orange-700 border-orange-200',
-    title: 'Risk Prediction', desc: 'AI scores each module by risk level and generates a 3-tier reduction plan with immediate, short-term, and long-term actions.',
-    tags: ['Risk Scoring', 'Reduction Plan', 'Module Analysis'],
   },
   {
     to: '/smart-report', icon: RiBarChartBoxLine, color: 'bg-emerald-600', light: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -60,7 +56,7 @@ const techStack = [
 const highlights = [
   { icon: MdOutlineSpeed,                  label: 'Fast AI Responses',    desc: 'Groq LLaMA 3.3 delivers sub-second AI analysis' },
   { icon: RiShieldCheckLine,               label: 'Secure by Default',    desc: 'JWT auth, bcrypt passwords, per-user data isolation' },
-  { icon: MdOutlineIntegrationInstructions,label: 'Multi-Agent System',   desc: '6 specialized AI agents working in parallel' },
+  { icon: MdOutlineIntegrationInstructions,label: 'Multi-Agent System',   desc: '4 specialized AI agents working in parallel' },
   { icon: MdOutlineVerified,               label: 'Production Ready',     desc: 'MySQL persistence, error handling, Excel exports' },
 ];
 
@@ -87,7 +83,7 @@ export default function Dashboard() {
             Welcome back, <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-violet-400">{user?.username}</span>
           </h1>
           <p className="text-slate-400 text-base sm:text-lg max-w-2xl leading-relaxed mb-8">
-            AutoQA AI is your intelligent QA automation platform — review test cases, analyze code, test websites, predict risks, and generate reports using cutting-edge AI.
+            AutoQA AI is your intelligent QA automation platform — review test cases, test websites, and generate reports using cutting-edge AI.
           </p>
           <div className="flex flex-wrap gap-3">
             <Link to="/test-review"
@@ -106,33 +102,38 @@ export default function Dashboard() {
       <div className="p-4 sm:p-6 lg:p-8 w-full space-y-8">
 
         {/* ── User Activity Stats ── */}
-        <div>
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Your Activity</p>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {[
-              { label: 'Test Cases Reviewed', value: stats.test_cases,    icon: RiTestTubeLine,    color: 'text-blue-600',    bg: 'bg-blue-50' },
-              { label: 'Code Reviews',         value: stats.code_reviews,  icon: RiCodeSSlashLine,  color: 'text-violet-600',  bg: 'bg-violet-50' },
-              { label: 'Website Tests',        value: stats.website_tests, icon: RiGlobalLine,      color: 'text-cyan-600',    bg: 'bg-cyan-50' },
-              { label: 'AI Agents Active',     value: 6,                   icon: RiBrainLine,       color: 'text-emerald-600', bg: 'bg-emerald-50' },
-            ].map(({ label, value, icon: Icon, color, bg }) => (
-              <div key={label} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-center gap-3">
-                <div className={`w-10 h-10 ${bg} rounded-lg flex items-center justify-center shrink-0`}>
-                  <Icon className={`${color} text-xl`} />
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div className="flex-1">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Your Activity</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { label: 'Test Cases Reviewed', value: stats.test_cases,    icon: RiTestTubeLine,    color: 'text-blue-600',    bg: 'bg-blue-50' },
+                { label: 'Website Tests',        value: stats.website_tests, icon: RiGlobalLine,      color: 'text-cyan-600',    bg: 'bg-cyan-50' },
+                { label: 'AI Agents Active',     value: 6,                   icon: RiBrainLine,       color: 'text-emerald-600', bg: 'bg-emerald-50' },
+              ].map(({ label, value, icon: Icon, color, bg }) => (
+                <div key={label} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-center gap-3">
+                  <div className={`w-10 h-10 ${bg} rounded-lg flex items-center justify-center shrink-0`}>
+                    <Icon className={`${color} text-xl`} />
+                  </div>
+                  <div>
+                    <p className="text-xl font-bold text-slate-800">{value}</p>
+                    <p className="text-xs text-slate-500 leading-tight">{label}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xl font-bold text-slate-800">{value}</p>
-                  <p className="text-xs text-slate-500 leading-tight">{label}</p>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
+          <Link to="/smart-report"
+            className="flex items-center gap-2 px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-amber-200 shrink-0">
+            <MdSend className="text-lg" /> Share Reports with Developers
+          </Link>
         </div>
 
         {/* ── Feature Cards ── */}
         <div>
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Platform Features</p>
-            <span className="text-xs text-slate-400">6 AI-powered tools</span>
+            <span className="text-xs text-slate-400">4 AI-powered tools</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
             {features.map(({ to, icon: Icon, color, light, title, desc, tags }) => (

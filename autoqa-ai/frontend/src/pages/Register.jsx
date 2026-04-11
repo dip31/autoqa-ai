@@ -7,7 +7,7 @@ import {
   MdErrorOutline, MdCheckCircleOutline, MdArrowForward,
   MdOutlineVisibility, MdOutlineVisibilityOff,
 } from 'react-icons/md';
-import { RiRobot2Line, RiShieldCheckLine } from 'react-icons/ri';
+import { RiRobot2Line, RiShieldCheckLine, RiGithubFill } from 'react-icons/ri';
 
 const perks = [
   'AI-powered test case review & generation',
@@ -20,6 +20,7 @@ const perks = [
 
 export default function Register() {
   const [form, setForm]       = useState({ username: '', email: '', password: '', confirm: '' });
+  const [role, setRole]       = useState('qa_engineer');
   const [error, setError]     = useState('');
   const [loading, setLoading] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
@@ -33,12 +34,16 @@ export default function Register() {
     if (form.password.length < 6)       { setError('Password must be at least 6 characters'); return; }
     setLoading(true);
     try {
-      const res = await register({ username: form.username, email: form.email, password: form.password });
+      const res = await register({ username: form.username, email: form.email, password: form.password, role });
       signIn(res.data.token, res.data.user);
-      navigate('/');
+      navigate(res.data.user.role === 'developer' ? '/dev' : '/');
     } catch (err) {
       setError(err.response?.data?.error || 'Registration failed. Please try again.');
     } finally { setLoading(false); }
+  };
+
+  const handleGithubLogin = () => {
+    window.location.href = 'http://localhost:5000/auth/github/login';
   };
 
   const strength = form.password.length === 0 ? 0 : form.password.length < 6 ? 1 : form.password.length < 10 ? 2 : 3;
@@ -116,6 +121,30 @@ export default function Register() {
               </div>
             )}
 
+            {/* Role picker */}
+            <div className="mb-6">
+              <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-3">I am a…</label>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { value: 'qa_engineer', emoji: '🧪', label: 'QA Engineer', desc: 'Test, review & automate' },
+                  { value: 'developer',   emoji: '💻', label: 'Developer',   desc: 'Build & generate code' },
+                ].map(r => (
+                  <button
+                    key={r.value} type="button" onClick={() => setRole(r.value)}
+                    className={`p-4 rounded-xl border-2 text-left transition-all ${
+                      role === r.value
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-slate-200 bg-slate-50 hover:border-slate-300'
+                    }`}
+                  >
+                    <p className="text-xl mb-1">{r.emoji}</p>
+                    <p className={`text-sm font-bold ${role === r.value ? 'text-blue-700' : 'text-slate-800'}`}>{r.label}</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">{r.desc}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Username</label>
@@ -191,6 +220,20 @@ export default function Register() {
                 )}
               </button>
             </form>
+
+            <div className="relative my-5">
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200" /></div>
+              <div className="relative flex justify-center"><span className="bg-white px-3 text-xs text-slate-400">Or join with</span></div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGithubLogin}
+              className="w-full flex items-center justify-center gap-2 py-3 border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold rounded-xl text-sm transition-all"
+            >
+              <RiGithubFill className="text-xl" />
+              Continue with GitHub
+            </button>
 
             <div className="relative my-5">
               <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200" /></div>

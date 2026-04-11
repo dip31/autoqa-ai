@@ -11,9 +11,10 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import {
   MdFileDownload, MdOutlineRefresh, MdOutlineInfo,
   MdOutlineLightbulb, MdOutlinePictureAsPdf, MdOutlineImage,
-  MdOutlineTableChart,
+  MdOutlineTableChart, MdSend, MdOutlineClose,
 } from 'react-icons/md';
 import { RiRobot2Line } from 'react-icons/ri';
+import { getTeamUsers, sendMessage } from '../api/client';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -111,6 +112,14 @@ export default function SmartReport() {
   const [imgError, setImgError]     = useState('');
   const [pdfLoading, setPdfLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  
+  const [showSendModal, setShowSendModal] = useState(false);
+  const [developers, setDevelopers] = useState([]);
+  const [selectedDevId, setSelectedDevId] = useState('');
+  const [sendNote, setSendNote] = useState('');
+  const [sendLoading, setSendLoading] = useState(false);
+  const [sendSuccess, setSendSuccess] = useState(false);
+  
   const cardRef = useRef(null);
 
   const handleGenerate = async () => {
@@ -136,6 +145,58 @@ export default function SmartReport() {
     try { exportReportPDF(result, user); }
     catch (e) { setError('PDF export failed: ' + e.message); }
     finally { setPdfLoading(false); }
+  };
+
+  const openSendModal = async () => {
+    setShowSendModal(true);
+    setSendSuccess(false);
+    if (developers.length === 0) {
+      try {
+        const res = await getTeamUsers();
+        setDevelopers(res.data.users || []);
+      } catch (e) { setError('Failed to load developers.'); }
+    }
+  };
+
+  const handleSendToDeveloper = async () => {
+    if (!selectedDevId) return;
+    setSendLoading(true);
+    try {
+      const summary = `
+🚀 *QA SMART REPORT* - ${new Date().toLocaleDateString()}
+-----------------------------------
+📊 *OVERALL QUALITY SCORE: ${result.quality_score}/100*
+
+📈 *ACTIVITY SUMMARY:*
+• Test Cases: ${result.stats?.total_testcases || 0}
+• Code Reviews: ${result.stats?.total_code_reviews || 0}
+• Website Tests: ${result.stats?.total_website_tests || 0}
+• Avg TC Score: ${result.stats?.avg_testcase_score || 0}
+• Avg Code Score: ${result.stats?.avg_code_score || 0}
+
+📝 *EXECUTIVE SUMMARY:*
+${result.executive_summary || 'No summary available.'}
+
+💡 *TOP RECOMMENDATIONS:*
+${(result.recommendations || []).slice(0, 3).map((r, i) => `${i + 1}. ${r}`).join('\n')}
+
+${sendNote ? `💬 *QA NOTE:* ${sendNote}` : ''}
+-----------------------------------
+_Sent via AutoQA AI Report Sharing_
+      `.trim();
+
+      await sendMessage({
+        receiver_id: parseInt(selectedDevId),
+        subject: `QA Smart Report - ${user?.username}`,
+        body: summary
+      });
+      setSendSuccess(true);
+      setTimeout(() => setShowSendModal(false), 2000);
+    } catch (e) {
+      setError('Failed to send report: ' + e.message);
+    } finally {
+      setSendLoading(false);
+    }
   };
 
   // Step 1: Get AI content from Gemini, Step 2: Screenshot the rendered card
@@ -209,6 +270,11 @@ export default function SmartReport() {
               className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-700 disabled:opacity-40 text-white rounded-lg text-sm font-medium transition-colors">
               <RiRobot2Line className="text-base" />
               {imgLoading ? 'Generating...' : 'Generate Image'}
+            </button>
+            <button onClick={openSendModal}
+              className="flex items-center gap-2 px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium transition-colors">
+              <MdSend className="text-base" />
+              Send to Developer
             </button>
           </>
         )}
@@ -366,6 +432,83 @@ export default function SmartReport() {
             )}
           </div>
 
+        </div>
+      )}
+
+      {/* Send to Developer Modal */}
+      {showSendModal && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="bg-gradient-to-r from-amber-500 to-orange-600 px-6 py-4 flex items-center justify-between">
+              <h3 className="text-white font-bold flex items-center gap-2">
+                <MdSend /> Send Report to Developer
+              </h3>
+              <button onClick={() => setShowSendModal(false)} className="text-white/80 hover:text-white transition-colors">
+                <MdOutlineClose className="text-xl" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              {sendSuccess ? (
+                <div className="py-8 text-center space-y-3">
+                  <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <MdSend className="text-3xl" />
+                  </div>
+                  <p className="text-slate-800 font-bold text-lg">Report Sent Successfully!</p>
+                  <p className="text-slate-500 text-sm">The developer will receive it in their inbox.</p>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Select Developer</label>
+                    <select
+                      value={selectedDevId}
+                      onChange={(e) => setSelectedDevId(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all"
+                    >
+                      <option value="">— Select a Developer —</option>
+                      {developers.map(dev => (
+                        <option key={dev.id} value={dev.id}>{dev.username} ({dev.email})</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Add a Note (Optional)</label>
+                    <textarea
+                      value={sendNote}
+                      onChange={(e) => setSendNote(e.target.value)}
+                      placeholder="e.g., Please review the quality score and bug summary..."
+                      rows={3}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all resize-none"
+                    />
+                  </div>
+                  
+                  <div className="pt-2">
+                    <button
+                      onClick={handleSendToDeveloper}
+                      disabled={sendLoading || !selectedDevId}
+                      className="w-full bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-amber-200 flex items-center justify-center gap-2"
+                    >
+                      {sendLoading ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <MdSend /> Confirm & Send Report
+                        </>
+                      )}
+                    </button>
+                    <p className="text-[10px] text-slate-400 text-center mt-3">
+                      This will send the executive summary, stats, and recommendations as a message.
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

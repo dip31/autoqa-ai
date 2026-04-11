@@ -1,22 +1,24 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  MdDashboard, MdOutlineFactCheck, MdOutlineCode,
+  MdDashboard, MdOutlineFactCheck,
   MdOutlineLanguage, MdOutlineAutoAwesome,
-  MdOutlineRadar, MdOutlineAssessment, MdClose,
-  MdLogout, MdPersonOutline,
+  MdOutlineAssessment, MdClose,
+  MdLogout, MdPersonOutline, MdOutlineHubOutlined, MdOutlineEmail,
 } from 'react-icons/md';
 import { TbBrandReact } from 'react-icons/tb';
+import { RiGithubFill } from 'react-icons/ri';
 import { useAuth } from '../context/AuthContext';
 
 const navItems = [
   { path: '/',                label: 'Dashboard',        icon: MdDashboard },
+  { path: '/github-intelligence', label: 'GitHub Intelligence', icon: RiGithubFill },
   { path: '/test-review',     label: 'Test Case Review', icon: MdOutlineFactCheck },
-  { path: '/code-review',     label: 'Code Review',      icon: MdOutlineCode },
   { path: '/website-testing', label: 'Website Testing',  icon: MdOutlineLanguage },
+  { path: '/autonomous-qa',   label: 'Autonomous QA',    icon: MdOutlineAutoAwesome },
   { path: '/test-generator',  label: 'Test Generator',   icon: MdOutlineAutoAwesome },
-  { path: '/risk-prediction', label: 'Risk Prediction',  icon: MdOutlineRadar },
   { path: '/smart-report',    label: 'Smart Report',     icon: MdOutlineAssessment },
+  { path: '/messages',        label: 'Messages',          icon: MdOutlineEmail },
 ];
 
 export default function Sidebar({ onClose }) {
