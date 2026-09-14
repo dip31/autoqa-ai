@@ -39,7 +39,7 @@ Return ONLY valid JSON, no extra text.
 def predict_risk(content: str, input_type: str = "general") -> dict:
     prompt = PROMPT_TEMPLATE.format(content=content, input_type=input_type)
     response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model="openai/gpt-oss-120b",
         messages=[{"role": "user", "content": prompt}],
         temperature=0.3
     )

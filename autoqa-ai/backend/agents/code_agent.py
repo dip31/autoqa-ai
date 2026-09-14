@@ -32,7 +32,7 @@ Return ONLY valid JSON, no extra text.
 def review_code(code: str, language: str) -> dict:
     prompt = PROMPT_TEMPLATE.format(code=code, language=language)
     response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model="openai/gpt-oss-120b",
         messages=[{"role": "user", "content": prompt}],
         temperature=0.2
     )

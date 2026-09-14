@@ -70,7 +70,7 @@ def generate_report(user_id: int = None) -> dict:
 
     try:
         response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="openai/gpt-oss-120b",
             messages=[{"role": "user", "content": summary_prompt}],
             temperature=0.3
         )
