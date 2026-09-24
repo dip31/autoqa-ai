@@ -3,12 +3,13 @@ import os
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "autoqa.db")
 
+
 def init_db():
     print(f"Initializing SQLite database at {DB_PATH}...")
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        
+
         # Schema for SQLite
         # Note: AUTO_INCREMENT -> AUTOINCREMENT (requires INTEGER PRIMARY KEY)
         # Note: %s -> ? (but we are executing raw SQL here)
@@ -189,7 +190,7 @@ def init_db():
                 FOREIGN KEY (run_id) REFERENCES autonomous_runs(id) ON DELETE CASCADE
             )
             """,
-            # ── Developer Portal tables ───────────────────────────────────────
+            # ── Developer Portal tables ──────────────────────────────────────
             """
             CREATE TABLE IF NOT EXISTS dev_projects (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -266,7 +267,28 @@ def init_db():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             )
-            """
+            """,
+
+            """CREATE TABLE IF NOT EXISTS candidate_tests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id INTEGER NOT NULL,
+    test_id TEXT NOT NULL,
+    perspective TEXT NOT NULL,
+    test_type TEXT,
+    title TEXT,
+    description TEXT,
+    target TEXT,
+    priority TEXT,
+    features_json TEXT,
+    transformer_score REAL,
+    selected INTEGER DEFAULT 0,
+    status TEXT DEFAULT 'PENDING',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (run_id)
+        REFERENCES autonomous_runs(id)
+        ON DELETE CASCADE
+)""",
+
         ]
 
         for query in queries:
@@ -359,6 +381,26 @@ def init_db():
                 FOREIGN KEY (message_id) REFERENCES platform_messages(id) ON DELETE CASCADE,
                 FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE
             )""",
+
+            """CREATE TABLE IF NOT EXISTS candidate_tests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id INTEGER NOT NULL,
+    test_id TEXT NOT NULL,
+    perspective TEXT NOT NULL,
+    test_type TEXT,
+    title TEXT,
+    description TEXT,
+    target TEXT,
+    priority TEXT,
+    features_json TEXT,
+    transformer_score REAL,
+    selected INTEGER DEFAULT 0,
+    status TEXT DEFAULT 'PENDING',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (run_id)
+        REFERENCES autonomous_runs(id)
+        ON DELETE CASCADE
+)""",
         ]
         for m in migrations:
             try:
@@ -371,6 +413,7 @@ def init_db():
         print("Migrations applied successfully.")
     except Exception as e:
         print(f"Error initializing database: {e}")
+
 
 if __name__ == "__main__":
     init_db()

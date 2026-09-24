@@ -10,6 +10,9 @@ import WebsiteTesting from './pages/WebsiteTesting';
 import TestGenerator from './pages/TestGenerator';
 import RiskPrediction from './pages/RiskPrediction';
 import SmartReport from './pages/SmartReport';
+import AutonomousQA from './pages/AutonomousQA';
+import GithubIntelligence from './pages/GithubIntelligence';
+import QAMessages from './pages/QAMessages';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import { MdMenu } from 'react-icons/md';
@@ -52,6 +55,9 @@ function ProtectedLayout() {
             <Route path="/test-generator"  element={<TestGenerator />} />
             <Route path="/risk-prediction" element={<RiskPrediction />} />
             <Route path="/smart-report"    element={<SmartReport />} />
+            <Route path="/autonomous-qa"   element={<AutonomousQA />} />
+            <Route path="/github-intelligence" element={<GithubIntelligence />} />
+            <Route path="/messages"        element={<QAMessages />} />
           </Routes>
         </main>
       </div>

@@ -3,13 +3,16 @@ QA-to-Dev Bridge Agent
 Converts QA findings -> root cause analysis, fix recommendations,
 Mermaid diagrams, timeline, code suggestions, code review, risk prediction.
 """
-import os, json, requests
+
+import os
+import json
+import requests
 from dotenv import load_dotenv
 
 load_dotenv(override=True)
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_MODELS  = ["gemini-flash-lite-latest", "gemini-flash-latest"]
+GEMINI_MODELS = ["gemini-flash-lite-latest", "gemini-flash-latest"]
 
 
 def _call_gemini(prompt: str) -> dict:
@@ -18,17 +21,21 @@ def _call_gemini(prompt: str) -> dict:
         "generationConfig": {
             "temperature": 0.35,
             "maxOutputTokens": 8192,
-            "response_mime_type": "application/json"
-        }
+            "response_mime_type": "application/json",
+        },
     }
     last_err = None
     for model in GEMINI_MODELS:
         try:
-            url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
-                   f"{model}:generateContent?key={GEMINI_API_KEY}")
+            url = (
+                f"https://generativelanguage.googleapis.com/v1beta/models/"
+                f"{model}:generateContent?key={GEMINI_API_KEY}"
+            )
             res = requests.post(url, json=payload, timeout=90)
             res.raise_for_status()
-            raw = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+            raw = res.json()["candidates"][0]["content"]["parts"][0][
+                "text"
+            ].strip()
             if raw.startswith("```"):
                 raw = raw.split("```")[1]
                 if raw.startswith("json"):
@@ -45,15 +52,15 @@ def analyze_qa_to_dev(qa_data: dict, system_mode: str = "FULL") -> dict:
     system_mode: "FULL" -> all sections
                  "QA_ONLY" -> summary + bug analysis only
     """
-    application  = qa_data.get("application", "Unknown App")
-    url          = qa_data.get("url", "")
-    bugs         = qa_data.get("bugs", [])
-    severity     = qa_data.get("severity", [])
-    steps        = qa_data.get("steps_to_reproduce", [])
-    expected     = qa_data.get("expected_behavior", [])
-    actual       = qa_data.get("actual_behavior", [])
-    screenshots  = qa_data.get("screenshots", [])
-    logs         = qa_data.get("logs", [])
+    application = qa_data.get("application", "Unknown App")
+    url = qa_data.get("url", "")
+    bugs = qa_data.get("bugs", [])
+    severity = qa_data.get("severity", [])
+    steps = qa_data.get("steps_to_reproduce", [])
+    expected = qa_data.get("expected_behavior", [])
+    actual = qa_data.get("actual_behavior", [])
+    screenshots = qa_data.get("screenshots", [])
+    logs = qa_data.get("logs", [])
 
     # Build context string
     context = f"""
@@ -83,26 +90,22 @@ LOGS:
 {context}
 
 Return strict JSON:
-{{
-  "summary": "2-3 paragraph professional QA summary",
+{"summary": "2-3 paragraph professional QA summary",
   "bug_analysis": [
-    {{
-      "bug": "bug name",
+    {"bug": "bug name",
       "severity": "Critical/High/Medium/Low",
       "category": "UI/Backend/API/Logic/Performance",
       "insight": "detailed analysis",
       "test_coverage_gap": "what test was missing"
-    }}
+    }
   ],
-  "test_insights": {{
-    "total_bugs": {len(bugs)},
+  "test_insights": {"total_bugs": {len(bugs)},
     "critical_count": 0,
     "high_count": 0,
     "patterns_detected": ["pattern 1", "pattern 2"],
     "most_affected_module": "module name",
     "coverage_recommendation": "what to test next"
-  }}
-}}"""
+  } } """
         try:
             result = _call_gemini(prompt)
             result["mode"] = "QA_ONLY"
@@ -110,7 +113,7 @@ Return strict JSON:
         except Exception as e:
             return {"error": str(e), "mode": "QA_ONLY"}
 
-    # ── FULL MODE ──────────────────────────────────────────────────────────────
+    # ── FULL MODE ───────────────────────────────────────────────────────────
     prompt = f"""You are an Advanced AI Software Engineering System bridging QA and Development.
 Act as: QA Analyst + Software Architect + Developer Assistant + Risk Analyst.
 
@@ -219,7 +222,7 @@ IMPORTANT:
             "application": application,
             "url": url,
             "total_bugs": len(bugs),
-            "screenshots_count": len(screenshots)
+            "screenshots_count": len(screenshots),
         }
         return result
     except Exception as e:
