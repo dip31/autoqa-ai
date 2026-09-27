@@ -1,0 +1,48 @@
+CREATE DATABASE IF NOT EXISTS autoqa_db;
+USE autoqa_db;
+
+CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(100) NOT NULL UNIQUE,
+    email VARCHAR(150) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS test_cases (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    testcase TEXT NOT NULL,
+    review_result TEXT,
+    score FLOAT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS code_reviews (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    code TEXT NOT NULL,
+    language VARCHAR(50),
+    result TEXT,
+    score FLOAT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS website_tests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    url VARCHAR(500) NOT NULL,
+    result TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS reports (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    report_data TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+);
