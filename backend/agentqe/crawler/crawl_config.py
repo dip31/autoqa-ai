@@ -3,6 +3,7 @@ Crawl Configuration for Phase 1.5A Bounded Multi-Page Application Crawler.
 """
 from dataclasses import dataclass, field
 from typing import List
+import os
 
 
 @dataclass
@@ -53,6 +54,18 @@ class CrawlConfig:
     # Maximum screenshot file size in bytes (5MB)
     max_screenshot_bytes: int = 5_000_000
 
+    # Phase 1.5E — Visual UI Parsing (OmniParser) Configuration
+    # Enable/disable visual parsing (requires screenshots_enabled=True)
+    visual_parsing_enabled: bool = True
+    # OmniParser timeout in milliseconds (default 2 minutes for GPU inference)
+    omniparser_timeout_ms: int = 120000
+    # OmniParser box threshold for detection
+    omniparser_box_threshold: float = 0.05
+    # OmniParser IOU threshold for NMS
+    omniparser_iou_threshold: float = 0.1
+    # OmniParser image size for icon detection
+    omniparser_imgsz: int = 640
+
     # Hard caps regardless of user input
     _MAX_PAGES_HARD_CAP: int = 50
     _MAX_DEPTH_HARD_CAP: int = 6
@@ -64,6 +77,13 @@ class CrawlConfig:
         # Validate screenshot_type
         if self.screenshot_type not in ("viewport", "full_page"):
             self.screenshot_type = "viewport"
+        # Load visual parsing settings from env if not explicitly set
+        if not hasattr(self, '_env_loaded'):
+            self.visual_parsing_enabled = os.getenv("VISUAL_PARSING_ENABLED", "true").lower() == "true"
+            self.omniparser_timeout_ms = int(os.getenv("OMNIPARSER_TIMEOUT_MS", str(self.omniparser_timeout_ms)))
+            self.omniparser_box_threshold = float(os.getenv("OMNIPARSER_BOX_THRESHOLD", str(self.omniparser_box_threshold)))
+            self.omniparser_iou_threshold = float(os.getenv("OMNIPARSER_IOU_THRESHOLD", str(self.omniparser_iou_threshold)))
+            self.omniparser_imgsz = int(os.getenv("OMNIPARSER_IMGSZ", str(self.omniparser_imgsz)))
 
     @classmethod
     def from_dict(cls, d: dict) -> "CrawlConfig":
@@ -75,6 +95,9 @@ class CrawlConfig:
             "screenshots_enabled", "screenshot_type",
             "screenshot_timeout_ms", "max_screenshot_width",
             "max_screenshot_height", "max_screenshot_bytes",
+            "visual_parsing_enabled", "omniparser_timeout_ms",
+            "omniparser_box_threshold", "omniparser_iou_threshold",
+            "omniparser_imgsz",
         }
         filtered = {k: v for k, v in d.items() if k in valid_keys}
         return cls(**filtered)

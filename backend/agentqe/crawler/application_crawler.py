@@ -41,6 +41,15 @@ from agentqe.crawler.url_utils import (
 )
 from agentqe.crawler.page_classifier import classify_page
 
+# Phase 1.5E — Visual UI Parsing
+try:
+    from agentqe.vision import OmniParserAdapter, VisualUIEvidence
+    VISION_AVAILABLE = True
+except ImportError:
+    VISION_AVAILABLE = False
+    OmniParserAdapter = None
+    VisualUIEvidence = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -1329,7 +1338,15 @@ class ApplicationCrawler:
 
     def _ensure_screenshot_dir(self) -> str:
         """Ensure screenshot storage directory exists and return its path."""
-        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        # application_crawler.py is nested under backend/agentqe/crawler.
+        # Resolve the repository root before appending the backend-relative path.
+        base_dir = os.path.dirname(
+            os.path.dirname(
+                os.path.dirname(
+                    os.path.dirname(os.path.abspath(__file__))
+                )
+            )
+        )
         screenshot_dir = os.path.join(base_dir, SCREENSHOT_STORAGE_DIR)
         os.makedirs(screenshot_dir, exist_ok=True)
         return screenshot_dir
@@ -1424,6 +1441,51 @@ class ApplicationCrawler:
                 "error": str(e)[:200],
                 "capture_type": config.screenshot_type,
             }
+
+    # ============================================================
+    # Phase 1.5E — Visual UI Parsing (OmniParser)
+    # ============================================================
+
+    def _parse_visual_ui(self, screenshot_metadata: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Parse screenshot with OmniParser and return normalized visual UI evidence.
+        
+        Args:
+            screenshot_metadata: Dict from _capture_screenshot with path, sha256, width, height, etc.
+        
+        Returns:
+            Dict with VisualUIEvidence structure (serializable)
+        """
+        if not VISION_AVAILABLE:
+            return {
+                "status": "unavailable",
+                "parser": "omniparser",
+                "error_code": "VISION_MODULE_UNAVAILABLE",
+                "message": "Vision module not available",
+            }
+        
+        try:
+            adapter = OmniParserAdapter()
+            
+            # Check if adapter is available
+            if not adapter.is_available():
+                return VisualUIEvidence.unavailable("omniparser").to_dict()
+            
+            screenshot_path = screenshot_metadata.get("path")
+            if not screenshot_path:
+                return VisualUIEvidence.failed(
+                    "omniparser", 
+                    "NO_SCREENSHOT_PATH", 
+                    "Screenshot metadata missing path"
+                ).to_dict()
+            
+            # Parse with OmniParser
+            evidence = adapter.parse(screenshot_path, screenshot_metadata)
+            return evidence.to_dict()
+            
+        except Exception as e:
+            logger.error(f"[ApplicationCrawler] Visual UI parsing failed: {e}")
+            return VisualUIEvidence.failed("omniparser", "PARSE_ERROR", str(e)[:300]).to_dict()
 
     def _crawl_single_page(
         self,
@@ -1578,6 +1640,32 @@ class ApplicationCrawler:
                 crawled.screenshot = self._capture_screenshot(page, config)
             else:
                 crawled.screenshot = {"status": "skipped", "reason": f"crawl_status={crawled.crawl_status}"}
+
+            # ============================================================
+            # Phase 1.5E — Visual UI Parsing (OmniParser)
+            # ============================================================
+            # Parse screenshot with OmniParser if visual parsing is enabled
+            if (crawled.crawl_status == "success" 
+                and config.visual_parsing_enabled 
+                and config.screenshots_enabled
+                and crawled.screenshot.get("status") == "success"
+                and VISION_AVAILABLE):
+                crawled.visual_ui = self._parse_visual_ui(crawled.screenshot)
+            else:
+                skipped_reason = []
+                if not config.visual_parsing_enabled:
+                    skipped_reason.append("visual_parsing_disabled")
+                if not config.screenshots_enabled:
+                    skipped_reason.append("screenshots_disabled")
+                if crawled.screenshot.get("status") != "success":
+                    skipped_reason.append(f"screenshot_status={crawled.screenshot.get('status')}")
+                if not VISION_AVAILABLE:
+                    skipped_reason.append("vision_module_unavailable")
+                crawled.visual_ui = {
+                    "status": "skipped",
+                    "parser": "omniparser",
+                    "reason": ", ".join(skipped_reason) if skipped_reason else "unknown",
+                }
 
         except Exception as e:
             err_str = str(e)

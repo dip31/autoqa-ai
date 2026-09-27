@@ -47,6 +47,12 @@ class ApplicationContext:
     # Evidence tracking
     evidence: Dict[str, List[str]] = field(default_factory=dict)  # field -> list of sources
 
+    # Phase 1.5F — Cross-modal evidence fusion result.
+    # Serialized UnifiedApplicationModel (see agentqe.fusion.schemas). It
+    # *references* the evidence above via stable evidence_refs and never
+    # replaces it. ``None`` when fusion did not run.
+    unified_model: Optional[Dict[str, Any]] = None
+
     # Metadata
     metadata: Dict[str, Any] = field(default_factory=dict)
 
@@ -76,6 +82,7 @@ class ApplicationContext:
             "navigation_graph": self.navigation_graph,
             "crawl_metadata": self.crawl_metadata,
             "evidence": self.evidence,
+            "unified_model": self.unified_model,
             "metadata": self.metadata,
         }
 

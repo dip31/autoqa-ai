@@ -468,14 +468,535 @@ Summary: ${runDetails.report.executive_summary}
                        })}
                      </div>
                    </div>
-                 )}
-              </div>
-              )}
+)}
+                     </div>
+                   )}
+                   
+                   {activeTab === 'Unified Model' && (
+                     <div className="space-y-8">
+                       {appUnderstanding?.unified_model ? (
+                         <div className="space-y-8">
+                           {/* Unified Model Summary */}
+                           <div className="bg-gradient-to-br from-indigo-50 to-violet-50 border border-indigo-100 rounded-2xl p-6 shadow-sm">
+                             <h3 className="text-xs font-black text-indigo-600 uppercase tracking-widest mb-4 flex items-center gap-2">
+                               <MdOutlineAnalytics className="text-indigo-500" /> Unified Application Model
+                             </h3>
+                             <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+                               {[
+                                 { label: 'Pages', value: appUnderstanding.unified_model.evidence_summary?.pages ?? '—', icon: MdOutlineLanguage, color: 'text-indigo-500' },
+                                 { label: 'Controls', value: appUnderstanding.unified_model.evidence_summary?.controls ?? '—', icon: MdOutlineRule, color: 'text-violet-500' },
+                                 { label: 'Forms', value: appUnderstanding.unified_model.evidence_summary?.forms ?? '—', icon: MdOutlineFactCheck, color: 'text-emerald-500' },
+                                 { label: 'API Endpoints', value: appUnderstanding.unified_model.evidence_summary?.api_endpoints ?? '—', icon: MdOutlineLanguage, color: 'text-orange-500' },
+                                 { label: 'User Flows', value: appUnderstanding.unified_model.evidence_summary?.user_flows ?? '—', icon: MdTimeline, color: 'text-blue-500' },
+                                 { label: 'Modules', value: appUnderstanding.unified_model.evidence_summary?.modules ?? '—', icon: MdOutlineFactCheck, color: 'text-amber-500' },
+                                 { label: 'Relationships', value: appUnderstanding.unified_model.evidence_summary?.relationships ?? '—', icon: MdOutlineAnalytics, color: 'text-cyan-500' },
+                                 { label: 'Requirements', value: appUnderstanding.unified_model.evidence_summary?.requirements ?? '—', icon: MdOutlineAssessment, color: 'text-amber-500' },
+                               ].map((stat, i) => (
+                                 <div key={i} className="bg-white/80 p-3 rounded-xl border border-indigo-100">
+                                   <div className="flex items-center gap-2 mb-1">
+                                     <stat.icon className={`${stat.color}`} />
+                                     <p className="text-[10px] text-indigo-400 font-bold uppercase">{stat.label}</p>
+                                   </div>
+                                   <p className="text-sm font-black text-slate-800">{stat.value}</p>
+                                 </div>
+                               ))}
+                             </div>
+                             {appUnderstanding.unified_model.fusion_metadata && (
+                               <div className="mt-4 space-y-2">
+                                 <div className="flex flex-wrap gap-2">
+                                   <span className="px-2 py-1 bg-indigo-100 text-indigo-700 text-[9px] font-bold uppercase rounded">
+                                     Engine: {appUnderstanding.unified_model.fusion_metadata.engine}
+                                   </span>
+                                   <span className="px-2 py-1 bg-blue-100 text-blue-700 text-[9px] font-bold uppercase rounded">
+                                     v{appUnderstanding.unified_model.fusion_metadata.fusion_version}
+                                   </span>
+                                   <span className="px-2 py-1 bg-emerald-100 text-emerald-700 text-[9px] font-bold uppercase rounded">
+                                     {appUnderstanding.unified_model.fusion_metadata.llm_used ? 'LLM Used' : 'Deterministic'}
+                                   </span>
+                                   <span className="px-2 py-1 bg-amber-100 text-amber-700 text-[9px] font-bold uppercase rounded">
+                                     {appUnderstanding.unified_model.fusion_metadata.duration_ms ? `${Math.round(appUnderstanding.unified_model.fusion_metadata.duration_ms)}ms` : '—'}
+                                   </span>
+                                 </div>
+                                 <div className="text-[9px] text-slate-400">
+                                   Sources: {appUnderstanding.unified_model.fusion_metadata.sources?.join(', ') || '—'}
+                                 </div>
+                                 {appUnderstanding.unified_model.fusion_metadata.warnings && appUnderstanding.unified_model.fusion_metadata.warnings.length > 0 && (
+                                   <div className="mt-2 space-y-1">
+                                     {appUnderstanding.unified_model.fusion_metadata.warnings.map((w, i) => (
+                                       <p key={i} className="text-[10px] text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-100">
+                                         ⚠ {w}
+                                       </p>
+                                     ))}
+                                   </div>
+                                 )}
+                                 {appUnderstanding.unified_model.fusion_metadata.validation && (
+                                   <div className="mt-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                                     <div className="flex items-center gap-2 mb-2">
+                                       <span className={`px-2 py-1 rounded text-[9px] font-bold uppercase ${appUnderstanding.unified_model.fusion_metadata.validation.valid ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                                         {appUnderstanding.unified_model.fusion_metadata.validation.valid ? 'Valid' : 'Has Errors'}
+                                       </span>
+                                       <span className="px-2 py-1 bg-slate-100 text-slate-600 text-[9px] font-bold uppercase rounded">
+                                         {appUnderstanding.unified_model.fusion_metadata.validation.error_count} error(s), {appUnderstanding.unified_model.fusion_metadata.validation.warning_count} warning(s)
+                                       </span>
+                                     </div>
+                                     {appUnderstanding.unified_model.fusion_metadata.validation.errors && appUnderstanding.unified_model.fusion_metadata.validation.errors.length > 0 && (
+                                       <div className="space-y-1 max-h-24 overflow-y-auto">
+                                         {appUnderstanding.unified_model.fusion_metadata.validation.errors.slice(0, 5).map((e, i) => (
+                                           <p key={i} className="text-[9px] text-red-600 bg-red-50 px-2 py-1 rounded border border-red-100">
+                                             {e.code}: {e.message}
+                                           </p>
+                                         ))}
+                                       </div>
+                                     )}
+                                     {appUnderstanding.unified_model.fusion_metadata.validation.warnings && appUnderstanding.unified_model.fusion_metadata.validation.warnings.length > 0 && (
+                                       <div className="space-y-1 max-h-24 overflow-y-auto mt-2">
+                                         {appUnderstanding.unified_model.fusion_metadata.validation.warnings.slice(0, 5).map((w, i) => (
+                                           <p key={i} className="text-[9px] text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-100">
+                                             {w.code}: {w.message}
+                                           </p>
+                                         ))}
+                                       </div>
+                                     )}
+                                   </div>
+                                 )}
+                               </div>
+                             )}
+                           </div>
+ 
+                           {/* Pages */}
+                           {appUnderstanding.unified_model.pages && appUnderstanding.unified_model.pages.length > 0 && (
+                             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                               <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                 <MdOutlineLanguage className="text-indigo-500" /> Pages ({appUnderstanding.unified_model.pages.length})
+                               </h3>
+                               <div className="overflow-x-auto">
+                                 <table className="w-full text-left text-xs">
+                                   <thead>
+                                     <tr className="text-slate-400 border-b border-slate-100 uppercase tracking-wider font-bold">
+                                       <th className="py-2 pl-2">Page</th>
+                                       <th className="py-2">Title</th>
+                                       <th className="py-2">Type</th>
+                                       <th className="py-2">Depth</th>
+                                       <th className="py-2">Status</th>
+                                       <th className="py-2">Controls</th>
+                                       <th className="py-2">Forms</th>
+                                       <th className="py-2">APIs</th>
+                                     </tr>
+                                   </thead>
+                                   <tbody className="divide-y divide-slate-50">
+                                     {appUnderstanding.unified_model.pages.slice(0, 30).map((p, i) => {
+                                       let path = '/';
+                                       try { path = new URL(p.url || '').pathname || p.url; } catch { path = p.url || '/'; }
+                                       const statusColor = p.crawl_status === 'success' ? 'text-emerald-600 bg-emerald-50' :
+                                         p.crawl_status === 'authentication_required' ? 'text-amber-600 bg-amber-50' :
+                                         'text-red-600 bg-red-50';
+                                       const typeColor = p.page_type_status === 'observed' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600';
+                                       return (
+                                         <tr key={i} className="hover:bg-slate-50/50">
+                                           <td className="py-3 pl-2 font-mono text-[10px] text-slate-600 max-w-[180px] truncate" title={path}>{path}</td>
+                                           <td className="py-3 text-slate-700 max-w-[160px] truncate" title={p.title}>{p.title || '—'}</td>
+                                           <td className="py-3">
+                                             <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${typeColor}`}>
+                                               {p.page_type || 'unknown'}
+                                             </span>
+                                           </td>
+                                           <td className="py-3 text-slate-500 font-bold">{p.depth ?? '—'}</td>
+                                           <td className="py-3">
+                                             <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${statusColor}`}>
+                                               {p.crawl_status || '—'}
+                                             </span>
+                                           </td>
+                                           <td className="py-3 text-slate-500 font-bold">{p.controls?.length || 0}</td>
+                                           <td className="py-3 text-slate-500 font-bold">{p.forms?.length || 0}</td>
+                                           <td className="py-3 text-slate-500 font-bold">{p.api_endpoints?.length || 0}</td>
+                                         </tr>
+                                       );
+                                     })}
+                                   </tbody>
+                                 </table>
+                                 {appUnderstanding.unified_model.pages.length > 30 && (
+                                   <p className="text-[10px] text-slate-400 text-center mt-2">... and {appUnderstanding.unified_model.pages.length - 30} more pages</p>
+                                 )}
+                               </div>
+                             </div>
+                           )}
+ 
+                           {/* Controls */}
+                           {appUnderstanding.unified_model.controls && appUnderstanding.unified_model.controls.length > 0 && (
+                             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                               <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                 <MdOutlineRule className="text-violet-500" /> Controls ({appUnderstanding.unified_model.controls.length})
+                               </h3>
+                               <div className="space-y-4">
+                                 {appUnderstanding.unified_model.controls.slice(0, 50).map((c, idx) => (
+                                   <div key={idx} className="border border-slate-100 rounded-xl p-4 hover:border-violet-200 transition-colors bg-slate-50/30">
+                                     <div className="flex items-start justify-between gap-4">
+                                       <div className="flex-1 min-w-0">
+                                         <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                           <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 text-[9px] font-bold uppercase rounded">{c.type}</span>
+                                           {c.dom_ref && <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-bold uppercase rounded">{c.dom_ref}</span>}
+                                           {c.accessibility_ref && <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[9px] font-bold uppercase rounded">{c.accessibility_ref}</span>}
+                                           {c.visual_ref && <span className="px-1.5 py-0.5 bg-violet-100 text-violet-700 text-[9px] font-bold uppercase rounded">{c.visual_ref}</span>}
+                                           <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
+                                             c.observation_status === 'observed' ? 'bg-emerald-100 text-emerald-700' :
+                                             c.observation_status === 'inferred' ? 'bg-blue-100 text-blue-700' :
+                                             'bg-slate-100 text-slate-500'
+                                           }`}>
+                                             {c.observation_status}
+                                           </span>
+                                           {c.semantic_role && (
+                                             <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-bold uppercase rounded">
+                                               {c.semantic_role}
+                                             </span>
+                                           )}
+                                         </div>
+                                         <div className="text-slate-600 font-mono text-[10px] space-y-0.5">
+                                           {c.label && <span>label: {c.label}</span>}
+                                           {c.text && <span>text: {c.text}</span>}
+                                           {c.dom_id && <span>dom_id: {c.dom_id}</span>}
+                                           {c.dom_name && <span>dom_name: {c.dom_name}</span>}
+                                           {c.href && <span>href: {c.href}</span>}
+                                           {c.bbox_pixels && <span>bbox (px): [{c.bbox_pixels.join(', ')}]</span>}
+                                           {c.bbox_normalized && <span>bbox (norm): [{c.bbox_normalized.map(v => v.toFixed(4)).join(', ')}]</span>}
+                                           {c.semantic_role && c.semantic_role_status && (
+                                             <span>semantic_role_status: {c.semantic_role_status}</span>
+                                           )}
+                                           {c.inference_reason && (
+                                             <span className="text-amber-600 italic">inference: {c.inference_reason}</span>
+                                           )}
+                                         </div>
+                                       </div>
+                                       <div className="flex items-center gap-2">
+                                         {c.confidence !== null && c.confidence !== undefined && (
+                                           <span className="px-2 py-1 bg-blue-100 text-blue-700 text-[9px] font-bold uppercase rounded">
+                                             {Math.round(c.confidence * 100)}%
+                                         </span>
+                                         )}
+                                         {c.confidence_basis && (
+                                           <span className="px-2 py-1 bg-slate-100 text-slate-600 text-[9px] font-bold uppercase rounded" title={c.confidence_basis}>
+                                             basis
+                                           </span>
+                                         )}
+                                       </div>
+                                      </div>
+                                    </div>
+                                    ))}
+                                    {appUnderstanding.unified_model.controls.length > 50 && (
+                                      <p className="text-[10px] text-slate-400 text-center mt-2">... and {appUnderstanding.unified_model.controls.length - 50} more controls</p>
+                                    )}
+</div>
+                                      </div>
+                            )}
+                            {/* Forms */}
+                           {appUnderstanding.unified_model.forms && appUnderstanding.unified_model.forms.length > 0 && (
+                             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                               <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                 <MdOutlineFactCheck className="text-emerald-500" /> Forms ({appUnderstanding.unified_model.forms.length})
+                               </h3>
+                               <div className="space-y-3">
+                                 {appUnderstanding.unified_model.forms.map((f, idx) => (
+                                   <div key={idx} className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                                     <div className="flex items-center gap-2 mb-2 text-xs">
+                                       <span className="font-mono text-slate-600">{f.id}</span>
+                                       <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[9px] font-bold uppercase rounded">{f.method}</span>
+                                       {f.action && <span className="text-slate-500 font-mono text-[10px] truncate max-w-[200px]">{f.action}</span>}
+                                       {f.semantic_role && <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-bold uppercase rounded">{f.semantic_role}</span>}
+                                       <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
+                                         f.observation_status === 'observed' ? 'bg-emerald-100 text-emerald-700' :
+                                         f.observation_status === 'inferred' ? 'bg-blue-100 text-blue-700' :
+                                         'bg-slate-100 text-slate-500'
+                                       }`}>
+                                         {f.observation_status}
+                                       </span>
+                                     </div>
+                                     <div className="space-y-1 text-[10px] text-slate-600">
+                                       {f.fields && f.fields.length > 0 && (
+                                         <div>
+                                           <span className="font-bold">Fields:</span>
+                                           {f.fields.slice(0, 10).map((fieldId, fi) => (
+                                             <span key={fi} className="ml-2 inline-block mr-2 px-1.5 py-0.5 bg-white border border-slate-200 rounded text-slate-700 font-mono">{fieldId}</span>
+                                           ))}
+                                           {f.fields.length > 10 && <span className="ml-2 text-slate-400">... +{f.fields.length - 10} more</span>}
+                                         </div>
+                                       )}
+                                       {f.submit_control && <span className="text-slate-600">submit: {f.submit_control}</span>}
+                                       {f.observed_api_endpoints && f.observed_api_endpoints.length > 0 && (
+                                         <span className="text-slate-600">APIs: {f.observed_api_endpoints.join(', ')}</span>
+                                       )}
+                                       {f.inference_reason && <span className="text-amber-600 italic">inference: {f.inference_reason}</span>}
+                                     </div>
+                                   </div>
+                                 ))}
+                               </div>
+                             </div>
+)}
+                            
+                            {/* API Endpoints */}
+                           {appUnderstanding.unified_model.api_endpoints && appUnderstanding.unified_model.api_endpoints.length > 0 && (
+                             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                               <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                 <MdOutlineLanguage className="text-orange-500" /> API Endpoints ({appUnderstanding.unified_model.api_endpoints.length})
+                               </h3>
+                               <div className="space-y-1 max-h-96 overflow-y-auto">
+                                 {appUnderstanding.unified_model.api_endpoints.map((endpoint, i) => {
+                                   const method = endpoint.method || 'GET';
+                                   const path = endpoint.path || endpoint.url || '';
+                                   const methodColor = method === 'GET' ? 'text-emerald-600' :
+                                                     method === 'POST' ? 'text-blue-600' :
+                                                     method === 'PUT' || method === 'PATCH' ? 'text-amber-600' :
+                                                     method === 'DELETE' ? 'text-red-600' : 'text-slate-600';
+                                   return (
+                                     <div key={i} className="bg-slate-50 px-3 py-2 rounded-lg border border-slate-100">
+                                       <div className="flex items-center gap-2 flex-wrap mb-1">
+                                         <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${methodColor} bg-white border border-slate-200`}>
+                                           {method}
+                                         </span>
+                                         <span className="font-mono text-[10px] text-slate-700 truncate flex-1 min-w-0">{path}</span>
+                                         {endpoint.host && <span className="text-[9px] text-slate-400">{endpoint.host}</span>}
+                                         <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 text-[9px] font-bold uppercase rounded">
+                                           {endpoint.observation_count} obs
+                                         </span>
+                                         {endpoint.failure_count > 0 && (
+                                           <span className="px-1.5 py-0.5 bg-red-100 text-red-700 text-[9px] font-bold uppercase rounded">
+                                             {endpoint.failure_count} failed
+                                           </span>
+                                         )}
+                                         {endpoint.observed_on_pages && endpoint.observed_on_pages.length > 0 && (
+                                           <span className="px-1.5 py-0.5 bg-violet-100 text-violet-700 text-[9px] font-bold uppercase rounded">
+                                             {endpoint.observed_on_pages.length} page(s)
+                                           </span>
+                                         )}
+                                       </div>
+                                       <div className="text-[9px] text-slate-400 ml-10">
+                                         {endpoint.request_metadata?.resource_type && <span>resource: {endpoint.request_metadata.resource_type}</span>}
+                                         {endpoint.response_metadata?.statuses?.length > 0 && (
+                                           <span className="ml-2">status: {endpoint.response_metadata.statuses.join(', ')}</span>
+                                         )}
+                                         {endpoint.response_metadata?.content_types?.length > 0 && (
+                                           <span className="ml-2">content: {endpoint.response_metadata.content_types.join(', ')}</span>
+                                         )}
+                                       </div>
+                                     </div>
+                                   );
+                                 })}
+                                 {appUnderstanding.unified_model.api_endpoints.length > 50 && (
+                                   <p className="text-[10px] text-slate-400 text-center mt-2">... and {appUnderstanding.unified_model.api_endpoints.length - 50} more endpoints</p>
+                                 )}
+                               </div>
+                             </div>
+)}
+                            
+                            {/* User Flows */}
+                           {appUnderstanding.unified_model.user_flows && appUnderstanding.unified_model.user_flows.length > 0 && (
+                             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                               <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                 <MdTimeline className="text-blue-500" /> User Flows ({appUnderstanding.unified_model.user_flows.length})
+                               </h3>
+                               <div className="space-y-4">
+                                 {appUnderstanding.unified_model.user_flows.map((flow, fi) => (
+                                   <div key={fi} className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                                     <div className="flex items-center gap-3 mb-2">
+                                       <span className="px-2 py-1 bg-blue-100 text-blue-700 text-[9px] font-bold uppercase rounded">{flow.source}</span>
+                                       <span className="px-2 py-1 bg-slate-100 text-slate-600 text-[9px] font-bold uppercase rounded">{flow.observation_status}</span>
+                                       {flow.confidence !== null && flow.confidence !== undefined && (
+                                         <span className="px-2 py-1 bg-blue-100 text-blue-700 text-[9px] font-bold uppercase rounded">
+                                           {Math.round(flow.confidence * 100)}%
+                                         </span>
+                                       )}
+                                       {flow.semantic_role && <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-bold uppercase rounded">{flow.semantic_role}</span>}
+                                     </div>
+                                     <p className="text-sm font-semibold text-slate-800">{flow.name}</p>
+                                     {flow.inference_reason && <p className="text-xs text-amber-600 italic mt-1">{flow.inference_reason}</p>}
+                                     {flow.steps && flow.steps.length > 0 && (
+                                       <div className="space-y-1 mt-2 pl-4 border-l border-slate-200">
+                                         {flow.steps.map((step, si) => (
+                                           <div key={si} className="flex gap-2 text-xs text-slate-600">
+                                             <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 text-[9px] font-bold uppercase rounded">{step.action}</span>
+                                             <span className="flex-1">{step.description}</span>
+                                             <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
+                                               step.observation_status === 'observed' ? 'bg-emerald-100 text-emerald-700' :
+                                               'bg-blue-100 text-blue-700'
+                                             }`}>
+                                               {step.observation_status}
+                                             </span>
+                                           </div>
+                                         ))}
+                                       </div>
+                                     )}
+                                     {flow.requirement_refs && flow.requirement_refs.length > 0 && (
+                                       <div className="mt-2 text-[9px] text-slate-400">
+                                         Requirements: {flow.requirement_refs.join(', ')}
+                                       </div>
+                                     )}
+                                   </div>
+                                 ))}
+                               </div>
+                             </div>
+)}
+                            
+                            {/* Modules */}
+                           {appUnderstanding.unified_model.modules && appUnderstanding.unified_model.modules.length > 0 && (
+                             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                               <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                 <MdOutlineFactCheck className="text-violet-500" /> Modules / Features ({appUnderstanding.unified_model.modules.length})
+                               </h3>
+                               <div className="space-y-3">
+                                 {appUnderstanding.unified_model.modules.map((m, idx) => (
+                                   <div key={idx} className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                                     <div className="flex items-center gap-2 mb-2 text-xs">
+                                       <span className="font-black text-slate-800">{m.name}</span>
+                                       <span className="px-1.5 py-0.5 bg-violet-100 text-violet-700 text-[9px] font-bold uppercase rounded">{m.source}</span>
+                                       <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
+                                         m.observation_status === 'observed' ? 'bg-emerald-100 text-emerald-700' :
+                                         m.observation_status === 'inferred' ? 'bg-blue-100 text-blue-700' :
+                                         'bg-slate-100 text-slate-500'
+                                       }`}>
+                                         {m.observation_status}
+                                       </span>
+                                     </div>
+                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px] text-slate-600">
+                                       <div className="bg-white p-2 rounded border border-slate-100">
+                                         <p className="text-[9px] text-slate-400 font-bold uppercase">Pages</p>
+                                         <p className="font-bold">{m.pages?.length || 0}</p>
+                                       </div>
+                                       <div className="bg-white p-2 rounded border border-slate-100">
+                                         <p className="text-[9px] text-slate-400 font-bold uppercase">Controls</p>
+                                         <p className="font-bold">{m.controls?.length || 0}</p>
+                                       </div>
+                                       <div className="bg-white p-2 rounded border border-slate-100">
+                                         <p className="text-[9px] text-slate-400 font-bold uppercase">Forms</p>
+                                         <p className="font-bold">{m.forms?.length || 0}</p>
+                                       </div>
+                                       <div className="bg-white p-2 rounded border border-slate-100">
+                                         <p className="text-[9px] text-slate-400 font-bold uppercase">APIs</p>
+                                         <p className="font-bold">{m.api_endpoints?.length || 0}</p>
+                                       </div>
+                                     </div>
+                                     {m.inference_reason && <p className="text-xs text-amber-600 italic mt-2">{m.inference_reason}</p>}
+                                   </div>
+                                 ))}
+                               </div>
+                             </div>
+)}
+                            
+                            {/* Relationships */}
+                           {appUnderstanding.unified_model.relationships && appUnderstanding.unified_model.relationships.length > 0 && (
+                             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                               <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                 <MdOutlineAnalytics className="text-cyan-500" /> Relationships ({appUnderstanding.unified_model.relationships.length})
+                               </h3>
+                               <div className="space-y-2 max-h-96 overflow-y-auto">
+                                 {appUnderstanding.unified_model.relationships.slice(0, 100).map((r, idx) => {
+                                   const relColors = {
+                                     'contains': 'bg-blue-100 text-blue-700',
+                                     'belongs_to': 'bg-indigo-100 text-indigo-700',
+                                     'labels': 'bg-emerald-100 text-emerald-700',
+                                     'associated_with': 'bg-slate-100 text-slate-600',
+                                     'likely_triggers': 'bg-amber-100 text-amber-700',
+                                     'submits_to': 'bg-orange-100 text-orange-700',
+                                     'navigates_to': 'bg-cyan-100 text-cyan-700',
+                                     'rendered_on': 'bg-violet-100 text-violet-700',
+                                     'implements': 'bg-purple-100 text-purple-700',
+                                     'satisfies': 'bg-emerald-100 text-emerald-700',
+                                     'observed_with': 'bg-slate-100 text-slate-600',
+                                   };
+                                   const relColor = relColors[r.relationship] || 'bg-slate-100 text-slate-600';
+                                   return (
+                                     <div key={idx} className="bg-slate-50 p-3 rounded-lg border border-slate-100 flex items-center gap-3">
+                                       <span className={`px-2 py-1 rounded text-[9px] font-bold uppercase ${relColor}`}>
+                                         {r.relationship}
+                                       </span>
+                                       <span className="font-mono text-[10px] text-slate-700">{r.source_id}</span>
+                                       <span className="text-slate-400 mx-1">→</span>
+                                       <span className="font-mono text-[10px] text-slate-700">{r.target_id}</span>
+                                       <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
+                                         r.observation_status === 'observed' ? 'bg-emerald-100 text-emerald-700' :
+                                         r.observation_status === 'inferred' ? 'bg-blue-100 text-blue-700' :
+                                         'bg-slate-100 text-slate-500'
+                                       }`}>
+                                         {r.observation_status}
+                                       </span>
+                                       {r.confidence !== null && r.confidence !== undefined && (
+                                         <span className="px-2 py-1 bg-blue-100 text-blue-700 text-[9px] font-bold uppercase rounded">
+                                           {Math.round(r.confidence * 100)}%
+                                         </span>
+                                       )}
+                                     </div>
+                                   );
+                                 })}
+                                 {appUnderstanding.unified_model.relationships.length > 100 && (
+                                   <p className="text-[10px] text-slate-400 text-center mt-2">... and {appUnderstanding.unified_model.relationships.length - 100} more relationships</p>
+                                 )}
+                               </div>
+                             </div>
+                           )}
+ 
+                           {/* Requirements Traceability */}
+                           {appUnderstanding.unified_model.requirements && appUnderstanding.unified_model.requirements.length > 0 && (
+                             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                               <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                 <MdOutlineAssessment className="text-amber-500" /> Requirements Traceability ({appUnderstanding.unified_model.requirements.length})
+                               </h3>
+                               <div className="space-y-3">
+                                 {appUnderstanding.unified_model.requirements.map((req, idx) => (
+                                   <div key={idx} className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                                     <div className="flex items-center gap-2 mb-2">
+                                       <span className="px-2 py-1 bg-amber-100 text-amber-700 text-[9px] font-bold uppercase rounded">{req.id}</span>
+                                       <span className="px-2 py-1 bg-amber-100 text-amber-700 text-[9px] font-bold uppercase rounded">{req.observation_status}</span>
+                                     </div>
+                                     <p className="text-sm text-slate-700">{req.description}</p>
+                                     {req.keywords && req.keywords.length > 0 && (
+                                       <div className="flex flex-wrap gap-1 mt-2">
+                                         {req.keywords.slice(0, 10).map((kw, ki) => (
+                                           <span key={ki} className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-bold uppercase rounded">{kw}</span>
+                                         ))}
+                                       </div>
+                                     )}
+                                   </div>
+                                 ))}
+                               </div>
+                             </div>
+)}
+                            
+                            {/* Repository Traceability */}
+                           {appUnderstanding.unified_model.modules && appUnderstanding.unified_model.modules.some(m => m.repository_refs && m.repository_refs.length > 0) && (
+                             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                               <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                 <RiGithubFill className="text-slate-500" /> Repository Traceability
+                               </h3>
+                               <div className="space-y-4">
+                                 {appUnderstanding.unified_model.modules.filter(m => m.repository_refs && m.repository_refs.length > 0).map((m, idx) => (
+                                   <div key={idx} className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                                     <p className="font-semibold text-slate-800 mb-2">{m.name}</p>
+                                     <div className="space-y-1">
+                                       {m.repository_refs.map((ref, ri) => (
+                                         <div key={ri} className="flex gap-2 text-xs">
+                                           <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-slate-700 font-mono">{ref.symbol}</span>
+                                           <span className="text-slate-600 truncate max-w-[300px]">{ref.file}</span>
+                                           <span className="px-1.5 py-0.5 bg-slate-100 text-slate-500 text-[9px] font-bold uppercase rounded">{ref.match_reason}</span>
+                                         </div>
+                                       ))}
+                                     </div>
+                                   </div>
+                                 ))}
+                               </div>
+                             </div>
+                           )}
+                         </div>
+                       ) : (
+                         <div className="bg-slate-100/50 border-2 border-dashed border-slate-200 rounded-3xl h-[400px] flex flex-col items-center justify-center text-center px-10">
+                           <MdOutlineAnalytics className="text-slate-300 text-6xl mb-6" />
+                           <h3 className="text-lg font-bold text-slate-800 mb-2">Unified Application Model</h3>
+                           <p className="text-sm text-slate-500 max-w-sm">Run Application Understanding to generate the unified cross-modal model.</p>
+                         </div>
+                       )}
+                     </div>
+                   )}
 
               {/* Interaction Tabs */}
               <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm min-h-[500px] flex flex-col">
                 <div className="flex border-b border-slate-100 shrink-0 overflow-x-auto no-scrollbar bg-slate-50/50">
-                  {['Overview', 'Test Cases', 'Browser Actions', 'Auto-Heal', 'Final Report', 'App Understanding', 'Test Generation'].map(tab => (
+                  {['Overview', 'Test Cases', 'Browser Actions', 'Auto-Heal', 'Final Report', 'App Understanding', 'Unified Model', 'Test Generation'].map(tab => (
                     <button
                       key={tab}
                       onClick={() => setActiveTab(tab)}
@@ -752,172 +1273,172 @@ Summary: ${runDetails.report.executive_summary}
                             </div>
                           </div>
 
-                          {/* Phase 1.5A — Crawl Summary */}
-                          {appUnderstanding.crawl_metadata && Object.keys(appUnderstanding.crawl_metadata).length > 0 && (
-                            <div className="bg-gradient-to-br from-violet-50 to-indigo-50 border border-violet-100 rounded-2xl p-6 shadow-sm">
-                              <h3 className="text-xs font-black text-violet-600 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                <MdOutlineLanguage className="text-violet-500" /> Crawl Summary
-                              </h3>
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                {[
-                                  { label: 'Pages Discovered', value: appUnderstanding.crawl_metadata.pages_discovered ?? '—' },
-                                  { label: 'Pages Analyzed', value: appUnderstanding.crawl_metadata.pages_analyzed ?? '—' },
-                                  { label: 'Pages Failed', value: appUnderstanding.crawl_metadata.pages_failed ?? '—' },
-                                  { label: 'Max Depth', value: appUnderstanding.crawl_metadata.max_depth ?? '—' },
-                                  { label: 'Max Pages', value: appUnderstanding.crawl_metadata.max_pages ?? '—' },
-                                  { label: 'Duration', value: appUnderstanding.crawl_metadata.duration_seconds ? `${appUnderstanding.crawl_metadata.duration_seconds}s` : '—' },
-                                  { label: 'Same Domain', value: appUnderstanding.crawl_metadata.same_domain_only ? 'Yes' : 'No' },
-                                  { label: 'Start URL', value: appUnderstanding.url || '—' },
-                                  // Phase 1.5C — Network metadata
-                                  { label: 'Network Requests', value: appUnderstanding.crawl_metadata.network_requests ?? '—' },
-                                  { label: 'Network Responses', value: appUnderstanding.crawl_metadata.network_responses ?? '—' },
-                                  { label: 'Network Failures', value: appUnderstanding.crawl_metadata.network_failures ?? '—' },
-                                  { label: 'API Candidates', value: appUnderstanding.crawl_metadata.api_candidates ?? '—' },
-                                ].map((stat, i) => (
-                                  <div key={i} className="bg-white/80 p-3 rounded-xl border border-violet-100">
-                                    <p className="text-[10px] text-violet-400 font-bold uppercase mb-1">{stat.label}</p>
-                                    <p className="text-sm font-black text-slate-800 truncate" title={String(stat.value)}>{String(stat.value)}</p>
-                                  </div>
-                                ))}
-                              </div>
-                              {appUnderstanding.crawl_metadata.warnings && appUnderstanding.crawl_metadata.warnings.length > 0 && (
-                                <div className="mt-3 space-y-1">
-                                  {appUnderstanding.crawl_metadata.warnings.map((w, i) => (
-                                    <p key={i} className="text-[11px] text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-100">
-                                      ⚠ {w}
-                                    </p>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          )}
+{/* Phase 1.5A — Crawl Summary */}
+                           {appUnderstanding.crawl_metadata && Object.keys(appUnderstanding.crawl_metadata).length > 0 && (
+                             <div className="bg-gradient-to-br from-violet-50 to-indigo-50 border border-violet-100 rounded-2xl p-6 shadow-sm">
+                               <h3 className="text-xs font-black text-violet-600 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                 <MdOutlineLanguage className="text-violet-500" /> Crawl Summary
+                               </h3>
+                               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                 {[
+                                   { label: 'Pages Discovered', value: appUnderstanding.crawl_metadata.pages_discovered ?? '—' },
+                                   { label: 'Pages Analyzed', value: appUnderstanding.crawl_metadata.pages_analyzed ?? '—' },
+                                   { label: 'Pages Failed', value: appUnderstanding.crawl_metadata.pages_failed ?? '—' },
+                                   { label: 'Max Depth', value: appUnderstanding.crawl_metadata.max_depth ?? '—' },
+                                   { label: 'Max Pages', value: appUnderstanding.crawl_metadata.max_pages ?? '—' },
+                                   { label: 'Duration', value: appUnderstanding.crawl_metadata.duration_seconds ? `${appUnderstanding.crawl_metadata.duration_seconds}s` : '—' },
+                                   { label: 'Same Domain', value: appUnderstanding.crawl_metadata.same_domain_only ? 'Yes' : 'No' },
+                                   { label: 'Start URL', value: appUnderstanding.url || '—' },
+                                   // Phase 1.5C — Network metadata
+                                   { label: 'Network Requests', value: appUnderstanding.crawl_metadata.network_requests ?? '—' },
+                                   { label: 'Network Responses', value: appUnderstanding.crawl_metadata.network_responses ?? '—' },
+                                   { label: 'Network Failures', value: appUnderstanding.crawl_metadata.network_failures ?? '—' },
+                                   { label: 'API Candidates', value: appUnderstanding.crawl_metadata.api_candidates ?? '—' },
+                                 ].map((stat, i) => (
+                                   <div key={i} className="bg-white/80 p-3 rounded-xl border border-violet-100">
+                                     <p className="text-[10px] text-violet-400 font-bold uppercase mb-1">{stat.label}</p>
+                                     <p className="text-sm font-black text-slate-800 truncate" title={String(stat.value)}>{String(stat.value)}</p>
+                                   </div>
+                                 ))}
+                               </div>
+                               {appUnderstanding.crawl_metadata.warnings && appUnderstanding.crawl_metadata.warnings.length > 0 && (
+                                 <div className="mt-3 space-y-1">
+                                   {appUnderstanding.crawl_metadata.warnings.map((w, i) => (
+                                     <p key={i} className="text-[11px] text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-100">
+                                       ⚠ {w}
+                                     </p>
+                                   ))}
+                                 </div>
+                               )}
+                             </div>
+                           )}
 
-                          {/* Phase 1.5A — Discovered Pages */}
-                          {appUnderstanding.pages && appUnderstanding.pages.length > 0 && (
-                            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-                              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                <MdOutlineLanguage className="text-indigo-500" /> Discovered Pages ({appUnderstanding.pages.length})
-                              </h3>
-                              <div className="overflow-x-auto">
-                                <table className="w-full text-left text-xs">
-                                  <thead>
-                                    <tr className="text-slate-400 border-b border-slate-100 uppercase tracking-wider font-bold">
-                                      <th className="py-2 pl-2">Path</th>
-                                      <th className="py-2">Title</th>
-                                      <th className="py-2">Type</th>
-                                      <th className="py-2">Depth</th>
-                                      <th className="py-2">Status</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody className="divide-y divide-slate-50">
-                                    {appUnderstanding.pages.slice(0, 25).map((p, i) => {
-                                      let path = '/';
-                                      try { path = new URL(p.url || '').pathname || p.url; } catch { path = p.url || '/'; }
-                                      const statusColor = p.crawl_status === 'success' ? 'text-emerald-600 bg-emerald-50' :
-                                        p.crawl_status === 'authentication_required' ? 'text-amber-600 bg-amber-50' :
-                                        'text-red-600 bg-red-50';
-                                      const typeColor = p.page_type_confidence === 'observed' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600';
-                                      return (
-                                        <tr key={i} className="hover:bg-slate-50/50">
-                                          <td className="py-3 pl-2 font-mono text-[10px] text-slate-600 max-w-[180px] truncate" title={path}>{path}</td>
-                                          <td className="py-3 text-slate-700 max-w-[160px] truncate" title={p.title}>{p.title || '—'}</td>
-                                          <td className="py-3">
-                                            <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${typeColor}`}>
-                                              {p.page_type || 'unknown'}
-                                            </span>
-                                          </td>
-                                          <td className="py-3 text-slate-500 font-bold">{p.depth ?? '—'}</td>
-                                          <td className="py-3">
-                                            <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${statusColor}`}>
-                                              {p.crawl_status || '—'}
-                                            </span>
-                                          </td>
-                                        </tr>
-                                      );
-                                    })}
-                                  </tbody>
-                                </table>
-{appUnderstanding.pages.length > 25 && (
-                                  <p className="text-[10px] text-slate-400 text-center mt-2">... and {appUnderstanding.pages.length - 25} more pages</p>
-                                )}
-                              </div>
-                            </div>
-                          )}
+                           {/* Phase 1.5A — Discovered Pages */}
+                           {appUnderstanding.pages && appUnderstanding.pages.length > 0 && (
+                             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                               <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                 <MdOutlineLanguage className="text-indigo-500" /> Discovered Pages ({appUnderstanding.pages.length})
+                               </h3>
+                               <div className="overflow-x-auto">
+                                 <table className="w-full text-left text-xs">
+                                   <thead>
+                                     <tr className="text-slate-400 border-b border-slate-100 uppercase tracking-wider font-bold">
+                                       <th className="py-2 pl-2">Path</th>
+                                       <th className="py-2">Title</th>
+                                       <th className="py-2">Type</th>
+                                       <th className="py-2">Depth</th>
+                                       <th className="py-2">Status</th>
+                                     </tr>
+                                   </thead>
+                                   <tbody className="divide-y divide-slate-50">
+                                     {appUnderstanding.pages.slice(0, 25).map((p, i) => {
+                                       let path = '/';
+                                       try { path = new URL(p.url || '').pathname || p.url; } catch { path = p.url || '/'; }
+                                       const statusColor = p.crawl_status === 'success' ? 'text-emerald-600 bg-emerald-50' :
+                                         p.crawl_status === 'authentication_required' ? 'text-amber-600 bg-amber-50' :
+                                         'text-red-600 bg-red-50';
+                                       const typeColor = p.page_type_confidence === 'observed' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600';
+                                       return (
+                                         <tr key={i} className="hover:bg-slate-50/50">
+                                           <td className="py-3 pl-2 font-mono text-[10px] text-slate-600 max-w-[180px] truncate" title={path}>{path}</td>
+                                           <td className="py-3 text-slate-700 max-w-[160px] truncate" title={p.title}>{p.title || '—'}</td>
+                                           <td className="py-3">
+                                             <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${typeColor}`}>
+                                               {p.page_type || 'unknown'}
+                                             </span>
+                                           </td>
+                                           <td className="py-3 text-slate-500 font-bold">{p.depth ?? '—'}</td>
+                                           <td className="py-3">
+                                             <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${statusColor}`}>
+                                               {p.crawl_status || '—'}
+                                             </span>
+                                           </td>
+                                         </tr>
+                                       );
+                                     })}
+                                   </tbody>
+                                 </table>
+                                 {appUnderstanding.pages.length > 25 && (
+                                   <p className="text-[10px] text-slate-400 text-center mt-2">... and {appUnderstanding.pages.length - 25} more pages</p>
+                                 )}
+                               </div>
+                             </div>
+                           )}
 
-                          {/* Phase 1.5B — UI Structure */}
-                          {appUnderstanding.pages && appUnderstanding.pages.length > 0 && (
-                            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-                              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                <MdOutlineRule className="text-violet-500" /> UI Structure
-                              </h3>
-                              <div className="space-y-4">
-                                {appUnderstanding.pages.slice(0, 10).map((p, i) => {
-                                  const dom = p.dom || {};
-                                  const ax = p.accessibility_tree || {};
-                                  const insights = p.ui_insights || {};
-                                  const interactiveCount = insights.interactive_element_count ?? dom.interactive_elements?.length ?? 0;
-                                  const formCount = insights.form_count ?? dom.forms?.length ?? 0;
-                                  const landmarkCount = insights.landmark_count ?? dom.landmarks?.length ?? 0;
-                                  const axNodeCount = insights.accessibility_node_count ?? ax.node_count ?? 0;
-                                  const axSource = ax.source || 'unknown';
-                                  let path = '/';
-                                  try { path = new URL(p.url || '').pathname || p.url; } catch { path = p.url || '/'; }
-                                  return (
-                                    <div key={i} className="border border-slate-100 rounded-xl p-4 hover:border-violet-200 transition-colors cursor-pointer bg-slate-50/30"
-                                         onClick={() => setSelectedPageForUI(p)}>
-                                      <div className="flex items-start justify-between gap-4">
-                                        <div className="flex-1 min-w-0">
-                                          <div className="flex items-center gap-2 mb-2">
-                                            <p className="font-mono text-[10px] text-slate-600 max-w-[200px] truncate" title={path}>{path}</p>
-                                            <span className="px-1.5 py-0.5 bg-violet-100 text-violet-700 text-[9px] font-bold uppercase rounded">
-                                              {axSource}
-                                            </span>
-                                          </div>
-                                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-                                            <div className="bg-white p-2 rounded-lg border border-slate-100">
-                                              <p className="text-[10px] text-slate-400 font-bold uppercase">Interactive</p>
-                                              <p className="text-sm font-black text-slate-800">{interactiveCount}</p>
-                                            </div>
-                                            <div className="bg-white p-2 rounded-lg border border-slate-100">
-                                              <p className="text-[10px] text-slate-400 font-bold uppercase">Forms</p>
-                                              <p className="text-sm font-black text-slate-800">{formCount}</p>
-                                            </div>
-                                            <div className="bg-white p-2 rounded-lg border border-slate-100">
-                                              <p className="text-[10px] text-slate-400 font-bold uppercase">Landmarks</p>
-                                              <p className="text-sm font-black text-slate-800">{landmarkCount}</p>
-                                            </div>
-                                            <div className="bg-white p-2 rounded-lg border border-slate-100">
-                                              <p className="text-[10px] text-slate-400 font-bold uppercase">AX Nodes</p>
-                                              <p className="text-sm font-black text-slate-800">{axNodeCount}</p>
-                                            </div>
-                                          </div>
-                                          {insights.has_login_controls && (
-                                            <span className="inline-flex items-center gap-1 mt-2 px-2 py-0.5 bg-blue-50 text-blue-700 text-[9px] font-bold uppercase rounded border border-blue-100">
-                                              Login Controls
-                                            </span>
-                                          )}
-                                          {insights.has_search_controls && (
-                                            <span className="inline-flex items-center gap-1 mt-2 ml-1 px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[9px] font-bold uppercase rounded border border-emerald-100">
-                                              Search Controls
-                                            </span>
-                                          )}
-                                          {insights.has_submission_controls && (
-                                            <span className="inline-flex items-center gap-1 mt-2 ml-1 px-2 py-0.5 bg-amber-50 text-amber-700 text-[9px] font-bold uppercase rounded border border-amber-100">
-                                              Submission Controls
-                                            </span>
-                                          )}
-                                        </div>
-                                        <RiArrowRightLine className="text-slate-400 shrink-0 mt-1" />
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                                {appUnderstanding.pages.length > 10 && (
-                                  <p className="text-[10px] text-slate-400 text-center mt-2">... and {appUnderstanding.pages.length - 10} more pages</p>
-                                )}
-                              </div>
-                            </div>
-                          )}
+                           {/* Phase 1.5B — UI Structure */}
+                           {appUnderstanding.pages && appUnderstanding.pages.length > 0 && (
+                             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                               <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                 <MdOutlineRule className="text-violet-500" /> UI Structure
+                               </h3>
+                               <div className="space-y-4">
+                                 {appUnderstanding.pages.slice(0, 10).map((p, i) => {
+                                   const dom = p.dom || {};
+                                   const ax = p.accessibility_tree || {};
+                                   const insights = p.ui_insights || {};
+                                   const interactiveCount = insights.interactive_element_count ?? dom.interactive_elements?.length ?? 0;
+                                   const formCount = insights.form_count ?? dom.forms?.length ?? 0;
+                                   const landmarkCount = insights.landmark_count ?? dom.landmarks?.length ?? 0;
+                                   const axNodeCount = insights.accessibility_node_count ?? ax.node_count ?? 0;
+                                   const axSource = ax.source || 'unknown';
+                                   let path = '/';
+                                   try { path = new URL(p.url || '').pathname || p.url; } catch { path = p.url || '/'; }
+                                   return (
+                                     <div key={i} className="border border-slate-100 rounded-xl p-4 hover:border-violet-200 transition-colors cursor-pointer bg-slate-50/30"
+                                          onClick={() => setSelectedPageForUI(p)}>
+                                       <div className="flex items-start justify-between gap-4">
+                                         <div className="flex-1 min-w-0">
+                                           <div className="flex items-center gap-2 mb-2">
+                                             <p className="font-mono text-[10px] text-slate-600 max-w-[200px] truncate" title={path}>{path}</p>
+                                             <span className="px-1.5 py-0.5 bg-violet-100 text-violet-700 text-[9px] font-bold uppercase rounded">
+                                               {axSource}
+                                             </span>
+                                           </div>
+                                           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                                             <div className="bg-white p-2 rounded-lg border border-slate-100">
+                                               <p className="text-[10px] text-slate-400 font-bold uppercase">Interactive</p>
+                                               <p className="text-sm font-black text-slate-800">{interactiveCount}</p>
+                                             </div>
+                                             <div className="bg-white p-2 rounded-lg border border-slate-100">
+                                               <p className="text-[10px] text-slate-400 font-bold uppercase">Forms</p>
+                                               <p className="text-sm font-black text-slate-800">{formCount}</p>
+                                             </div>
+                                             <div className="bg-white p-2 rounded-lg border border-slate-100">
+                                               <p className="text-[10px] text-slate-400 font-bold uppercase">Landmarks</p>
+                                               <p className="text-sm font-black text-slate-800">{landmarkCount}</p>
+                                             </div>
+                                             <div className="bg-white p-2 rounded-lg border border-slate-100">
+                                               <p className="text-[10px] text-slate-400 font-bold uppercase">AX Nodes</p>
+                                               <p className="text-sm font-black text-slate-800">{axNodeCount}</p>
+                                             </div>
+                                           </div>
+                                           {insights.has_login_controls && (
+                                             <span className="inline-flex items-center gap-1 mt-2 px-2 py-0.5 bg-blue-50 text-blue-700 text-[9px] font-bold uppercase rounded border border-blue-100">
+                                               Login Controls
+                                             </span>
+                                           )}
+                                           {insights.has_search_controls && (
+                                             <span className="inline-flex items-center gap-1 mt-2 ml-1 px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[9px] font-bold uppercase rounded border border-emerald-100">
+                                               Search Controls
+                                             </span>
+                                           )}
+                                           {insights.has_submission_controls && (
+                                             <span className="inline-flex items-center gap-1 mt-2 ml-1 px-2 py-0.5 bg-amber-50 text-amber-700 text-[9px] font-bold uppercase rounded border border-amber-100">
+                                               Submission Controls
+                                             </span>
+                                           )}
+                                         </div>
+                                         <RiArrowRightLine className="text-slate-400 shrink-0 mt-1" />
+                                       </div>
+                                     </div>
+                                   );
+                                 })}
+                                 {appUnderstanding.pages.length > 10 && (
+                                   <p className="text-[10px] text-slate-400 text-center mt-2">... and {appUnderstanding.pages.length - 10} more pages</p>
+                                 )}
+                               </div>
+                             </div>
+                           )}
 
                           {/* Phase 1.5B — Selected Page UI Detail */}
                           {selectedPageForUI && (
@@ -1172,6 +1693,104 @@ Summary: ${runDetails.report.executive_summary}
                                     </div>
                                   </div>
                                 )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Phase 1.5E — Visual UI Evidence (OmniParser) */}
+                          {(selectedPageForUI?.visual_ui && selectedPageForUI?.visual_ui?.status === 'success') && (
+                            <div>
+                              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                <MdOutlineAnalytics className="text-indigo-500" /> Visual UI Evidence
+                              </h4>
+                              <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                <div className="flex items-center gap-3 mb-3 flex-wrap">
+                                  <span className="px-2 py-1 bg-indigo-100 text-indigo-700 text-[9px] font-bold uppercase rounded">
+                                    {selectedPageForUI?.visual_ui?.parser || 'omniparser'}
+                                  </span>
+                                  <span className="px-2 py-1 bg-blue-100 text-blue-700 text-[9px] font-bold uppercase rounded">
+                                    v{selectedPageForUI?.visual_ui?.parser_version || '—'}
+                                  </span>
+                                  <span className="px-2 py-1 bg-emerald-100 text-emerald-700 text-[9px] font-bold uppercase rounded">
+                                    {selectedPageForUI?.visual_ui?.model_version || '—'}
+                                  </span>
+                                  <span className="px-2 py-1 bg-cyan-100 text-cyan-700 text-[9px] font-bold uppercase rounded">
+                                    {selectedPageForUI?.visual_ui?.image_width}x{selectedPageForUI?.visual_ui?.image_height}
+                                  </span>
+                                  <span className="px-2 py-1 bg-violet-100 text-violet-700 text-[9px] font-bold uppercase rounded">
+                                    {selectedPageForUI?.visual_ui?.elements?.length || 0} elements
+                                  </span>
+                                  {selectedPageForUI?.visual_ui?.parse_duration_ms && (
+                                    <span className="px-2 py-1 bg-amber-100 text-amber-700 text-[9px] font-bold uppercase rounded">
+                                      {Math.round(selectedPageForUI?.visual_ui?.parse_duration_ms)}ms
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="space-y-1 text-[10px] font-mono text-slate-600 mb-3">
+                                  <div className="flex justify-between">
+                                    <span>SHA256:</span>
+                                    <span className="truncate max-w-[300px]">{selectedPageForUI?.visual_ui?.screenshot_sha256 || '—'}</span>
+                                  </div>
+                                </div>
+                                {/* Visual Elements List */}
+                                {(selectedPageForUI?.visual_ui?.elements && selectedPageForUI.visual_ui.elements.length > 0) && (
+                                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-2">Detected Elements:</p>
+                                    {selectedPageForUI?.visual_ui?.elements.slice(0, 50).map((el, idx) => (
+                                      <div key={idx} className="bg-white p-3 rounded-lg border border-slate-100 text-[10px]">
+                                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                          <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 text-[9px] font-bold uppercase rounded">{el.type}</span>
+                                          {el.source && <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 text-[9px] font-bold uppercase rounded">{el.source}</span>}
+                                          {el.interactable === true && <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[9px] font-bold uppercase rounded">Interactable</span>}
+                                          {el.interactable === false && <span className="px-1.5 py-0.5 bg-red-100 text-red-700 text-[9px] font-bold uppercase rounded">Non-interactable</span>}
+                                          {el.confidence !== null && el.confidence !== undefined && (
+                                            <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-bold uppercase rounded">
+                                              {Math.round(el.confidence * 100)}%
+                                            </span>
+                                          )}
+                                        </div>
+                                        <div className="text-slate-600 font-mono text-[10px] space-y-0.5 ml-2">
+                                          {el.text && <span>text: {el.text}</span>}
+                                          {el.caption && <span>caption: {el.caption}</span>}
+                                          <span>bbox (px): [{el.bbox_pixels?.join(', ')}]</span>
+                                          <span>bbox (norm): [{el.bbox_normalized?.map(v => v.toFixed(4)).join(', ')}]</span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                    {selectedPageForUI?.visual_ui?.elements.length > 50 && (
+                                      <p className="text-[10px] text-slate-400 text-center mt-2">... and {selectedPageForUI.visual_ui.elements.length - 50} more elements</p>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                          {(selectedPageForUI?.visual_ui && selectedPageForUI.visual_ui.status !== 'success' && selectedPageForUI.visual_ui.status !== 'skipped') && (
+                            <div>
+                              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                <MdOutlineAnalytics className="text-indigo-500" /> Visual UI Evidence
+                              </h4>
+                              <div className="bg-amber-50 p-3 rounded-lg border border-amber-100 text-xs text-amber-700">
+                                Status: {selectedPageForUI.visual_ui.status || 'unknown'}
+                                {selectedPageForUI.visual_ui.error_code && (
+                                  <span className="ml-2">Error: {selectedPageForUI.visual_ui.error_code}</span>
+                                )}
+                                {selectedPageForUI.visual_ui.message && (
+                                  <span className="ml-2">Message: {selectedPageForUI.visual_ui.message}</span>
+                                )}
+                                {selectedPageForUI.visual_ui.reason && (
+                                  <span className="ml-2">Reason: {selectedPageForUI.visual_ui.reason}</span>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                          {(selectedPageForUI?.visual_ui && selectedPageForUI.visual_ui.status === 'skipped') && (
+                            <div>
+                              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                <MdOutlineAnalytics className="text-indigo-500" /> Visual UI Evidence
+                              </h4>
+                              <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 text-xs text-slate-600">
+                                Skipped: {selectedPageForUI.visual_ui.reason || selectedPageForUI.visual_ui.message || 'unknown reason'}
                               </div>
                             </div>
                           )}

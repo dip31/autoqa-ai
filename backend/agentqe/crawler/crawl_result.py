@@ -50,6 +50,8 @@ class CrawledPage:
     network_activity: List[Dict[str, Any]] = field(default_factory=list)
     # Phase 1.5D — Screenshot Capture & Visual Evidence
     screenshot: Dict[str, Any] = field(default_factory=dict)
+    # Phase 1.5E — Visual UI Parsing Evidence
+    visual_ui: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -81,6 +83,7 @@ class CrawledPage:
             "ui_insights": self.ui_insights,
             "network_activity": self.network_activity,
             "screenshot": self.screenshot,
+            "visual_ui": self.visual_ui,
         }
 
 
@@ -93,6 +96,11 @@ class CrawlResult:
     discovered_routes: List[Dict[str, Any]] = field(default_factory=list)
     crawl_metadata: Dict[str, Any] = field(default_factory=dict)
     warnings: List[str] = field(default_factory=list)
+    # Phase 1.5C — aggregated API endpoints observed across all pages.
+    # ApplicationCrawler.crawl() already populated this attribute, but the field
+    # (and its serialization) were missing, so the aggregate never reached
+    # consumers. Declared here so it survives to_dict(); purely additive.
+    api_endpoints: List[Dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -102,4 +110,5 @@ class CrawlResult:
             "discovered_routes": self.discovered_routes,
             "crawl_metadata": self.crawl_metadata,
             "warnings": self.warnings,
+            "api_endpoints": self.api_endpoints,
         }

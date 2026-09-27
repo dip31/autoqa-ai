@@ -124,6 +124,14 @@ class ApplicationUnderstandingAgent(IApplicationUnderstanding):
             if pages_with_network:
                 self._add_evidence(evidence_sources, "network_observation", ["network_activity"])
             
+            # Phase 1.5E — Visual UI evidence tracking
+            pages_with_visual_ui = [
+                p for p in crawl_result.get("pages", []) 
+                if p.get("visual_ui") and p["visual_ui"].get("status") == "success"
+            ]
+            if pages_with_visual_ui:
+                self._add_evidence(evidence_sources, "visual_ui_parsing", ["visual_ui"])
+            
             # Use observed API endpoints from network activity (Phase 1.5C)
             observed_api_endpoints = crawl_result.get("api_endpoints", [])
             if observed_api_endpoints:
@@ -167,7 +175,62 @@ class ApplicationUnderstandingAgent(IApplicationUnderstanding):
         # Set evidence tracking
         ctx.evidence = evidence_sources
 
+        # 5. Phase 1.5F — Cross-modal evidence fusion (deterministic, no LLM).
+        self._fuse_evidence(ctx, evidence_sources)
+
         return ctx
+
+    def _fuse_evidence(self, ctx: ModelApplicationContext,
+                       evidence_sources: Dict[str, List[str]]) -> None:
+        """
+        Phase 1.5F — build a UnifiedApplicationModel from everything collected so
+        far and attach it to ``ctx.unified_model``.
+
+        Raw evidence (DOM, accessibility tree, network activity, screenshots,
+        visual UI) is left untouched; the unified model only references it.
+
+        Fusion is intentionally non-fatal: application understanding must keep
+        working (and the API must keep responding) even if fusion fails, so any
+        exception is logged, recorded in ``ctx.metadata``, and swallowed.
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+
+        try:
+            from agentqe.fusion import (
+                DeterministicEvidenceFusionEngine,
+                validate_unified_model,
+            )
+
+            engine = DeterministicEvidenceFusionEngine()
+            model = engine.fuse(ctx)
+            validation = validate_unified_model(model)
+            model.fusion_metadata.validation = validation
+            ctx.unified_model = model.to_dict()
+
+            self._add_evidence(evidence_sources, "evidence_fusion", ["unified_model"])
+            ctx.evidence = evidence_sources
+
+            summary = ctx.unified_model.get("evidence_summary", {})
+            logger.info(
+                "Phase 1.5F fusion: %s page(s), %s control(s), %s form(s), %s endpoint(s), "
+                "%s relationship(s) [engine=deterministic]",
+                summary.get("pages"), summary.get("controls"), summary.get("forms"),
+                summary.get("api_endpoints"), summary.get("relationships"),
+            )
+            if not validation.get("valid"):
+                logger.warning(
+                    "Phase 1.5F fusion validation found %s error(s): %s",
+                    validation.get("error_count"),
+                    [e.get("code") for e in validation.get("errors", [])[:5]],
+                )
+        except Exception as e:  # never break application understanding
+            logger.warning("Phase 1.5F evidence fusion failed: %s", e, exc_info=True)
+            ctx.unified_model = None
+            try:
+                ctx.metadata["unified_model_error"] = str(e)
+            except Exception:
+                pass
 
     # ------------------------------------------------------------------
     # Private helpers
