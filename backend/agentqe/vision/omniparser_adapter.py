@@ -277,33 +277,57 @@ class OmniParserAdapter(VisualUIParser):
         env["OMNIPARSER_HOME"] = self.config.omniparser_home
         env["OMNIPARSER_MODEL_DIR"] = self.config.omniparser_model_dir
         
+        logger.debug(f"[OmniParserAdapter] Invoking CLI: {' '.join(cmd)}")
+        logger.debug(f"[OmniParserAdapter] Env OMNIPARSER_HOME={env.get('OMNIPARSER_HOME')}")
+        
         # Run subprocess with timeout
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=self.config.omniparser_timeout_ms / 1000.0,
-            shell=False,
-            env=env,
-        )
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=self.config.omniparser_timeout_ms / 1000.0,
+                shell=False,
+                env=env,
+            )
+        except subprocess.TimeoutExpired as e:
+            raise RuntimeError(f"OmniParser CLI timed out after {self.config.omniparser_timeout_ms} ms")
+        except Exception as e:
+            raise RuntimeError(f"Failed to start OmniParser CLI: {e}")
+        
+        # Log stdout/stderr for debugging
+        stdout = result.stdout if result.stdout is not None else ""
+        stderr = result.stderr if result.stderr is not None else ""
+        logger.debug(f"[OmniParserAdapter] CLI stdout (last 500 chars): {stdout[-500:]}")
+        logger.debug(f"[OmniParserAdapter] CLI stderr (last 500 chars): {stderr[-500:]}")
         
         if result.returncode != 0:
-            error_msg = result.stderr.strip() if result.stderr else "Unknown error"
+            error_msg = stderr.strip() if stderr else "Unknown error"
+            logger.error(f"[OmniParserAdapter] CLI failed with exit code {result.returncode}: {error_msg}")
             raise RuntimeError(f"OmniParser CLI failed (exit {result.returncode}): {error_msg}")
+        
+        # Parse JSON output
+        if not stdout:
+            logger.error("[OmniParserAdapter] Empty stdout from OmniParser CLI")
+            raise RuntimeError("OmniParser CLI produced no output")
         
         # Parse JSON output
         try:
             # OmniParser may print timing/debug lines before its JSON payload.
             # The CLI emits the result as the final JSON line.
-            json_line = next(
-                line for line in reversed(result.stdout.splitlines())
-                if line.strip().startswith("{")
-            )
+            json_line = None
+            for line in reversed(stdout.splitlines()):
+                line = line.strip()
+                if line.startswith("{"):
+                    json_line = line
+                    break
+            if json_line is None:
+                raise RuntimeError(f"Failed to find JSON in OmniParser output. stdout: {stdout[:500]}")
             output = json.loads(json_line)
         except json.JSONDecodeError as e:
-            raise RuntimeError(f"Failed to parse OmniParser output: {e}. stdout: {result.stdout[:500]}")
+            raise RuntimeError(f"Failed to parse OmniParser output: {e}. stdout: {stdout[:500]}")
         except StopIteration:
-            raise RuntimeError(f"Failed to find JSON in OmniParser output: {result.stdout[:500]}")
+            raise RuntimeError(f"Failed to find JSON in OmniParser output: {stdout[:500]}")
         
         if "error" in output:
             raise RuntimeError(f"OmniParser returned error: {output['error']}")
@@ -338,6 +362,9 @@ class OmniParserAdapter(VisualUIParser):
         screenshot_sha256 = screenshot_metadata.get("sha256")
         
         parsed_content = raw_output.get("parsed_content_list", [])
+        if not isinstance(parsed_content, list):
+            logger.warning("[OmniParserAdapter] parsed_content_list is not a list, treating as empty")
+            parsed_content = []
         elements = []
         
         for idx, item in enumerate(parsed_content):

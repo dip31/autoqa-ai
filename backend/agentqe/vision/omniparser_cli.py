@@ -85,7 +85,10 @@ def main():
             easyocr_args={'paragraph': False, 'text_threshold': 0.9},
             use_paddleocr=False
         )
-        ocr_text, ocr_bbox = ocr_result
+        if ocr_result is None:
+            ocr_text, ocr_bbox = [], []
+        else:
+            ocr_text, ocr_bbox = ocr_result
         
         # Run full parsing with SOM labeling
         draw_bbox_config = {

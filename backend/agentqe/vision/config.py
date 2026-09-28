@@ -26,7 +26,7 @@ class VisionConfig:
     omniparser_runtime: str = "subprocess"  # "subprocess" | "http"
     
     # Timeout for OmniParser inference (milliseconds)
-    omniparser_timeout_ms: int = 120000  # 2 minutes default for GPU inference
+    omniparser_timeout_ms: int = 300000  # 5 minutes default to handle CPU cold starts
     
     # OmniParser installation paths (environment variables take precedence)
     omniparser_home: str = field(default_factory=lambda: os.getenv(
@@ -84,7 +84,7 @@ class VisionConfig:
             "visual_parsing_enabled": os.getenv("VISUAL_PARSING_ENABLED", "true").lower() == "true",
             "omniparser_enabled": os.getenv("OMNIPARSER_ENABLED", "true").lower() == "true",
             "omniparser_runtime": os.getenv("OMNIPARSER_RUNTIME", "subprocess"),
-            "omniparser_timeout_ms": int(os.getenv("OMNIPARSER_TIMEOUT_MS", "120000")),
+            "omniparser_timeout_ms": int(os.getenv("OMNIPARSER_TIMEOUT_MS", "300000")),
             "omniparser_python": os.getenv("OMNIPARSER_PYTHON", "python"),
             "omniparser_command": os.getenv("OMNIPARSER_COMMAND", ""),
             "omniparser_box_threshold": float(os.getenv("OMNIPARSER_BOX_THRESHOLD", "0.05")),

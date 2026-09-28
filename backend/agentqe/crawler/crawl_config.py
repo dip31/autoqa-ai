@@ -16,10 +16,10 @@ class CrawlConfig:
     """
 
     # Maximum number of pages to visit (hard cap)
-    max_pages: int = 20
+    max_pages: int = 3
 
     # Maximum BFS depth from the start URL
-    max_depth: int = 3
+    max_depth: int = 1
 
     # Restrict crawl to the same domain as the start URL
     same_domain_only: bool = True
@@ -28,7 +28,7 @@ class CrawlConfig:
     page_timeout_ms: int = 15000
 
     # Total wall-clock budget for the entire crawl in seconds
-    overall_timeout_seconds: int = 60
+    overall_timeout_seconds: int = int(os.getenv("CRAWLER_OVERALL_TIMEOUT_SECONDS", "3600"))
 
     # Wait after page load before scraping (ms) — allows SPA hydration
     post_load_wait_ms: int = 1500

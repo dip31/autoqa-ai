@@ -1289,62 +1289,65 @@ def api_agentqe_application_understand():
         return jsonify({"error": f"Application understanding failed: {str(e)}"}), 500
 
 
+@app.route("/api/agentqe/application/query", methods=["POST"])
+@jwt_required()
+def api_agentqe_application_query():
+    data = request.get_json() or {}
+    query = data.get("query", "").strip()
+    top_k = data.get("top_k", 5)
+
+    if not query:
+        return jsonify({"error": "Query is required"}), 400
+
+    try:
+        from agentqe.rag.service import RAGService
+        rag_service = RAGService()
+        if not rag_service.is_ready:
+            return jsonify({"error": "RAG index is not ready. Please run Application Understanding first."}), 400
+
+        results = rag_service.query(query, top_k=top_k)
+        
+        return jsonify({
+            "success": True, 
+            "results": [r.to_dict() for r in results]
+        })
+    except Exception as e:
+        return jsonify({"error": f"RAG query failed: {str(e)}"}), 500
+
+
 @app.route("/api/agentqe/tests/generate", methods=["POST"])
 @jwt_required()
 def api_agentqe_tests_generate():
     from agentqe.models.context import ApplicationContext
-    from agentqe.agents.test_planning_agent import TestPlanningAgent
-    from agentqe.agents.user_agents import UserAgent
-    from agentqe.agents.engineering_agent import EngineeringQAAgent
-    from agentqe.pool.candidate_pool import CandidateTestPool
-    from agentqe.enrichment.enricher import TestEnricher
+    from agentqe.generation.service import TestGenerationService
+    from agentqe.rag.service import RAGService
 
     try:
         data = request.get_json() or {}
         context_data = data.get("application_context")
+        requirement = data.get("requirement", "")
+        max_tests = data.get("max_tests", 10)
         
         if not context_data:
             return jsonify({"error": "application_context is required"}), 400
             
         context = ApplicationContext(**{k: v for k, v in context_data.items() if hasattr(ApplicationContext, k)})
 
-        # 1. Test Planning
-        test_planner = TestPlanningAgent()
-        test_plan = test_planner.plan(context)
+        # Phase 3 Test Generation
+        rag_service = RAGService()
+        generation_service = TestGenerationService(rag_service=rag_service)
         
-        # 2. Multi-perspective Generation
-        user_agent = UserAgent()
-        try:
-            user_tests = user_agent.generate(context, test_plan)
-        except Exception as e:
-            app.logger.error(f"UserAgent failed: {e}")
-            user_tests = []
-            
-        engineering_agent = EngineeringQAAgent()
-        try:
-            engineering_tests = engineering_agent.generate(context, test_plan)
-        except Exception as e:
-            app.logger.error(f"EngineeringQAAgent failed: {e}")
-            engineering_tests = []
-            
-        # 3. Candidate Pool Merging
-        pool = CandidateTestPool()
-        merged_tests = pool.merge(user_tests, engineering_tests)
-        
-        # 4. Enrichment
-        enricher = TestEnricher()
-        enriched_tests = enricher.enrich(merged_tests, repository_data=context.repository_data)
+        result = generation_service.generate_tests(
+            app_context=context,
+            requirement=requirement or context.requirement,
+            max_tests=max_tests
+        )
         
         return jsonify({
             "success": True,
-            "test_plan": test_plan,
-            "user_tests": [t.to_dict() for t in user_tests],
-            "engineering_tests": [t.to_dict() for t in engineering_tests],
-            "candidate_tests": [t.to_dict() for t in enriched_tests],
-            "metadata": {
-                "total_generated": len(user_tests) + len(engineering_tests),
-                "total_merged": len(enriched_tests)
-            }
+            "generation_summary": result.get("generation_summary"),
+            "candidate_tests": result.get("candidate_tests", []),
+            "errors": result.get("errors", [])
         })
         
     except Exception as e:

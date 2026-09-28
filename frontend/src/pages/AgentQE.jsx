@@ -10,6 +10,8 @@ import { RiRobot2Line, RiLoader4Line, RiHistoryLine, RiShieldFlashLine, RiMagicL
 import { runAgentQE, getAutonomousRunDetails, submitAgentQEReview, getAutonomousRuns, getTeamUsers, sendMessage, understandApplication, generateAgentQETests } from '../api/client';
 import Loader from '../components/Loader';
 import ScoreBadge from '../components/ScoreBadge';
+import KnowledgeModelUI from '../components/KnowledgeModelUI';
+import TestGenerationUI from '../components/TestGenerationUI';
 
 export default function AgentQE() {
   const [showShareModal, setShowShareModal] = useState(false);
@@ -184,7 +186,17 @@ Summary: ${runDetails.report.executive_summary}
       setAppUnderstanding(res.data.context);
       setActiveTab('App Understanding');
     } catch (err) {
-      setAppUnderstandingError(err.response?.data?.error || "Application understanding failed");
+      let msg = "Application understanding failed";
+      if (err.response?.data?.error) {
+        msg = err.response.data.error;
+      } else if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+        msg = "Request timed out. The analysis is taking longer than expected. You can increase the timeout via REACT_APP_API_TIMEOUT_MS.";
+      } else if (err.name === 'Cancel' || err.message?.includes('canceled')) {
+        msg = "Request was cancelled.";
+      } else if (err.message) {
+        msg = err.message;
+      }
+      setAppUnderstandingError(msg);
     } finally {
       setAppUnderstandingLoading(false);
     }
@@ -996,7 +1008,7 @@ Summary: ${runDetails.report.executive_summary}
               {/* Interaction Tabs */}
               <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm min-h-[500px] flex flex-col">
                 <div className="flex border-b border-slate-100 shrink-0 overflow-x-auto no-scrollbar bg-slate-50/50">
-                  {['Overview', 'Test Cases', 'Browser Actions', 'Auto-Heal', 'Final Report', 'App Understanding', 'Unified Model', 'Test Generation'].map(tab => (
+                  {['Overview', 'Test Cases', 'Browser Actions', 'Auto-Heal', 'Final Report', 'App Understanding', 'Unified Model', 'Knowledge Model', 'Test Generation'].map(tab => (
                     <button
                       key={tab}
                       onClick={() => setActiveTab(tab)}
@@ -2076,7 +2088,21 @@ Summary: ${runDetails.report.executive_summary}
                       )}
                     </div>
                   )}
-                  
+
+                  {activeTab === 'Knowledge Model' && (
+                    <div className="space-y-8">
+                      {appUnderstanding?.knowledge_model ? (
+                        <KnowledgeModelUI knowledgeModel={appUnderstanding.knowledge_model} />
+                      ) : (
+                        <div className="bg-slate-100/50 border-2 border-dashed border-slate-200 rounded-3xl h-[400px] flex flex-col items-center justify-center text-center px-10">
+                          <MdOutlineAnalytics className="text-slate-300 text-6xl mb-6" />
+                          <h3 className="text-lg font-bold text-slate-800 mb-2">Knowledge Model</h3>
+                          <p className="text-sm text-slate-500 max-w-sm">Run Application Understanding to generate the deterministic knowledge model.</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {activeTab === 'Test Generation' && (
                     <div className="space-y-8">
                       {!testGeneration && !testGenerationLoading && (
@@ -2109,67 +2135,7 @@ Summary: ${runDetails.report.executive_summary}
                       )}
 
                       {testGeneration && (
-                        <div className="space-y-6">
-                          <div className="flex justify-between items-center">
-                             <h3 className="text-lg font-bold text-slate-800">Candidate Test Pool</h3>
-                             <span className="px-3 py-1 bg-violet-100 text-violet-700 text-xs font-bold rounded-full">
-                               {testGeneration.metadata.total_merged} Tests Generated
-                             </span>
-                          </div>
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                               <p className="text-[10px] font-bold text-slate-500 uppercase">User Perspective Tests</p>
-                               <p className="text-2xl font-black text-slate-800">{testGeneration.user_tests?.length || 0}</p>
-                             </div>
-                             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                               <p className="text-[10px] font-bold text-slate-500 uppercase">Engineering QA Tests</p>
-                               <p className="text-2xl font-black text-slate-800">{testGeneration.engineering_tests?.length || 0}</p>
-                             </div>
-                          </div>
-
-                          <div className="space-y-4">
-                            {testGeneration.candidate_tests?.map((tc, i) => (
-                              <div key={i} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-all">
-                                <div className="flex justify-between items-start mb-2">
-                                  <div>
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <span className="font-mono text-[10px] text-slate-400 font-bold">{tc.test_id}</span>
-                                      <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${tc.perspective === 'USER' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
-                                        {tc.perspective} Perspective
-                                      </span>
-                                      <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[9px] font-bold uppercase">
-                                        {tc.test_type}
-                                      </span>
-                                    </div>
-                                    <h4 className="font-bold text-slate-800 text-sm">{tc.title}</h4>
-                                    <p className="text-xs text-slate-600 mt-1">{tc.description}</p>
-                                  </div>
-                                  <div className="text-right">
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase">Risk Score</p>
-                                    <p className="font-black text-slate-700">{(tc.risk_score || 0).toFixed(2)}</p>
-                                  </div>
-                                </div>
-                                <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap gap-x-6 gap-y-2 text-[10px]">
-                                  <div>
-                                    <span className="font-bold text-slate-400 uppercase">Target: </span>
-                                    <span className="text-slate-700">{tc.target || 'General'}</span>
-                                  </div>
-                                  {tc.evidence && (
-                                    <div>
-                                      <span className="font-bold text-slate-400 uppercase">Evidence: </span>
-                                      <span className="text-slate-700">{tc.evidence.source || 'inferred'}</span>
-                                    </div>
-                                  )}
-                                  <div>
-                                    <span className="font-bold text-slate-400 uppercase">Source: </span>
-                                    <span className="text-slate-700">{tc.source_agent}</span>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
+                        <TestGenerationUI generationResult={testGeneration} />
                       )}
                     </div>
                   )}

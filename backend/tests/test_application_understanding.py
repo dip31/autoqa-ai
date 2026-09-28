@@ -221,6 +221,75 @@ def test_application_understanding_agent_with_requirement_only():
         assert "User Registration" in result.user_flows
 
 
+def test_application_context_keeps_knowledge_model_in_serialized_output():
+    """Knowledge model must survive serialization even when visual parsing fails."""
+    from agentqe.models.context import ApplicationContext
+
+    ctx = ApplicationContext(
+        url="https://example.com",
+        app_name="Test App",
+        unified_model={"pages": [], "evidence_summary": {"pages": 1}},
+        knowledge_model={"entities": [{"name": "Dashboard"}], "evidence_summary": {"entities": 1}},
+        metadata={"knowledge_model_status": "success"},
+    )
+
+    serialized = ctx.to_dict()
+
+    assert serialized["knowledge_model"]["entities"][0]["name"] == "Dashboard"
+    assert serialized["metadata"]["knowledge_model_status"] == "success"
+
+
+@patch('agentqe.agents.application_understanding_agent.ApplicationUnderstandingAgent._crawl_application')
+@patch('agentqe.agents.application_understanding_agent._analyze_requirement')
+def test_application_understanding_continues_after_visual_ui_failure(mock_analyze_req, mock_crawl_app):
+    """A failed visual parse must not abort the unified or knowledge model pipeline."""
+    from agentqe.agents.application_understanding_agent import ApplicationUnderstandingAgent
+    from agentqe.models.context import ApplicationUnderstandingInput
+
+    mock_crawl_app.return_value = {
+        "pages": [{
+            "url": "https://example.com",
+            "depth": 0,
+            "title": "Test Application",
+            "page_type": "dashboard",
+            "page_type_confidence": "observed",
+            "crawl_status": "success",
+            "detected_flows": ["Authentication"],
+            "forms": [{"action": "/login", "method": "POST", "inputs": [{"type": "email", "name": "email"}]}],
+            "links": [{"target": "https://example.com/api/users", "text": "Users API"}],
+            "nav_links": [{"text": "Login", "href": "/login"}],
+            "buttons": ["Login"],
+            "inputs": [{"type": "email", "name": "email"}],
+            "has_login": True,
+            "has_search": False,
+            "has_cart": False,
+            "has_product": False,
+            "main_text": "Welcome",
+            "dom": {"interactive_elements": []},
+            "accessibility_tree": {"role": "root"},
+            "visual_ui": {"status": "failed", "error_code": "OMNIPARSER_TIMEOUT", "message": "Timed out"},
+        }],
+        "navigation_graph": {"nodes": ["https://example.com"], "edges": []},
+        "discovered_routes": [{"path": "/", "url": "https://example.com", "depth": 0, "page_type": "dashboard", "title": "Test Application", "status": 200, "crawl_status": "success"}],
+        "crawl_metadata": {"pages_analyzed": 1, "pages_failed": 0, "pages_discovered": 1, "duration_seconds": 1.0},
+        "warnings": [],
+    }
+    mock_analyze_req.return_value = {
+        "key_user_flows": ["User Login"],
+        "items": ["Login form"],
+        "risk_areas": ["Session management"],
+    }
+
+    result = ApplicationUnderstandingAgent().analyze(ApplicationUnderstandingInput(
+        url="https://example.com",
+        requirement="Users should be able to login securely",
+    ))
+
+    assert result.unified_model is not None
+    assert result.knowledge_model is not None
+    assert result.metadata.get("knowledge_model_status") == "success"
+
+
 def test_serialization_roundtrip():
     """Test that models can be serialized and deserialized."""
     from agentqe.models.context import ApplicationContext, ApplicationUnderstandingInput

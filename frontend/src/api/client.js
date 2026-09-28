@@ -1,9 +1,11 @@
 import axios from 'axios';
 
+const DEFAULT_TIMEOUT_MS = Number(process.env.REACT_APP_API_TIMEOUT_MS) || 300000; // 5 minutes default
+
 const api = axios.create({
   baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5001',
   headers: { 'Content-Type': 'application/json' },
-  timeout: 60000,
+  timeout: DEFAULT_TIMEOUT_MS,
 });
 
 export const axiosInstance = api;
@@ -55,6 +57,7 @@ export const getAutonomousRunDetails = (id)   => api.get(`/api/autonomous-qa/run
 export const runAgentQE            = (data)   => api.post('/api/agentqe/run', data);
 export const submitAgentQEReview   = (id, d)  => api.post(`/api/agentqe/review/${id}`, d);
 export const understandApplication = (data)   => api.post('/api/agentqe/application/understand', data);
+export const queryApplication = (data)      => api.post('/api/agentqe/application/query', data);
 export const generateAgentQETests  = (data)   => api.post('/api/agentqe/tests/generate', data);
 
 // QA-to-Dev Bridge

@@ -474,6 +474,9 @@ class ApplicationCrawler:
         queue: deque = deque([(normalised_start, start_url, 0)])
         queued.add(normalised_start)
 
+        # Ensure visual UI parsing runs only on the first successful page
+        self._visual_parsing_done = False
+
         nav_nodes: List[str] = []
         nav_edges: List[Dict[str, Any]] = []
 
@@ -1649,8 +1652,10 @@ class ApplicationCrawler:
                 and config.visual_parsing_enabled 
                 and config.screenshots_enabled
                 and crawled.screenshot.get("status") == "success"
-                and VISION_AVAILABLE):
+                and VISION_AVAILABLE
+                and not self._visual_parsing_done):
                 crawled.visual_ui = self._parse_visual_ui(crawled.screenshot)
+                self._visual_parsing_done = True
             else:
                 skipped_reason = []
                 if not config.visual_parsing_enabled:

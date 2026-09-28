@@ -7,8 +7,10 @@ Analyzes application from URL, requirements, and repository to produce Applicati
 
 import json
 import re
+import time
 from typing import Dict, Any, List, Optional
 from playwright.sync_api import sync_playwright
+from agentqe.knowledge import DeterministicApplicationKnowledgeBuilder
 
 from agentqe.interfaces import IApplicationUnderstanding, ApplicationContext, ApplicationUnderstandingInput
 from agentqe.models.context import ApplicationContext as ModelApplicationContext, ApplicationUnderstandingInput as ModelInput
@@ -49,6 +51,10 @@ class ApplicationUnderstandingAgent(IApplicationUnderstanding):
             module_name=input_data.module_name or "",
         )
 
+        # Timing instrumentation
+        timings = {}
+        phase_start = time.time()
+
         # Track evidence sources
         evidence_sources = {}
 
@@ -59,7 +65,9 @@ class ApplicationUnderstandingAgent(IApplicationUnderstanding):
 
         # 1. Application crawling (if URL provided)
         if input_data.url:
+            crawl_start = time.time()
             crawl_result = self._crawl_application(input_data.url, crawl_config_data)
+            timings["crawl_ms"] = round((time.time() - crawl_start) * 1000, 2)
 
             # Populate legacy single-page page_data from the first (depth-0) page
             start_page = next(
@@ -176,7 +184,28 @@ class ApplicationUnderstandingAgent(IApplicationUnderstanding):
         ctx.evidence = evidence_sources
 
         # 5. Phase 1.5F — Cross-modal evidence fusion (deterministic, no LLM).
+        fusion_start = time.time()
         self._fuse_evidence(ctx, evidence_sources)
+        timings["fusion_ms"] = round((time.time() - fusion_start) * 1000, 2)
+
+        # total duration
+        timings["total_ms"] = round((time.time() - phase_start) * 1000, 2)
+        ctx.metadata["timings"] = timings
+
+        # 6. Phase 1.5G — Build deterministic Application Knowledge Model
+        try:
+            self._build_knowledge_model(ctx, evidence_sources)
+            if ctx.knowledge_model:
+                ctx.metadata["knowledge_model_status"] = "success"
+                ctx.metadata.pop("knowledge_model_error", None)
+            else:
+                ctx.metadata["knowledge_model_status"] = "not_available"
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning("Phase 1.5G knowledge model construction failed: %s", e, exc_info=True)
+            ctx.knowledge_model = None
+            ctx.metadata["knowledge_model_status"] = "failed"
+            ctx.metadata["knowledge_model_error"] = str(e)
 
         return ctx
 
@@ -229,6 +258,62 @@ class ApplicationUnderstandingAgent(IApplicationUnderstanding):
             ctx.unified_model = None
             try:
                 ctx.metadata["unified_model_error"] = str(e)
+            except Exception:
+                pass
+
+    def _build_knowledge_model(self, ctx: ModelApplicationContext,
+                               evidence_sources: Dict[str, List[str]]) -> None:
+        """
+        Phase 1.5G — build a deterministic Application Knowledge Model from the
+        UnifiedApplicationModel and attach it to ``ctx.knowledge_model``.
+        Phase 2 — build a LlamaIndex RAG representation from the Knowledge Model.
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+
+        try:
+            unified = ctx.unified_model
+            if not unified:
+                logger.warning("No unified model available for knowledge model construction")
+                ctx.knowledge_model = None
+                ctx.metadata["knowledge_model_status"] = "not_available"
+                return
+
+            engine = DeterministicApplicationKnowledgeBuilder()
+            model = engine.build(unified)
+            # validation already done in fusion step; we just store
+            ctx.knowledge_model = model.to_dict()
+            ctx.metadata["knowledge_model_status"] = "success"
+            ctx.metadata.pop("knowledge_model_error", None)
+            logger.info(
+                "Phase 1.5G knowledge model built: %s entities, %s relationships",
+                len(model.entities), len(model.relationships)
+            )
+
+            # Phase 2: RAG Indexing
+            try:
+                from agentqe.rag.service import RAGService
+                rag_service = RAGService()
+                rag_result = rag_service.build_index(model)
+                if rag_result.get("status") == "success":
+                    ctx.metadata["rag_index_status"] = "success"
+                    ctx.metadata["rag_document_count"] = rag_result.get("document_count")
+                    logger.info("Phase 2 RAG index built successfully")
+                else:
+                    ctx.metadata["rag_index_status"] = "failed"
+                    ctx.metadata["rag_index_error"] = rag_result.get("error")
+                    logger.warning("Phase 2 RAG indexing failed: %s", rag_result.get("error"))
+            except Exception as rag_e:
+                logger.warning("Phase 2 RAG indexing encountered an error: %s", rag_e, exc_info=True)
+                ctx.metadata["rag_index_status"] = "failed"
+                ctx.metadata["rag_index_error"] = str(rag_e)
+
+        except Exception as e:
+            logger.warning("Phase 1.5G knowledge model construction failed: %s", e, exc_info=True)
+            ctx.knowledge_model = None
+            ctx.metadata["knowledge_model_status"] = "failed"
+            try:
+                ctx.metadata["knowledge_model_error"] = str(e)
             except Exception:
                 pass
 

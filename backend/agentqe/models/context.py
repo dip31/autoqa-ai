@@ -53,6 +53,11 @@ class ApplicationContext:
     # replaces it. ``None`` when fusion did not run.
     unified_model: Optional[Dict[str, Any]] = None
 
+    # Phase 1.5G — Deterministic application knowledge model generated from
+    # the unified model. This is the model the API and UI render in the
+    # "Knowledge Model" tab.
+    knowledge_model: Optional[Dict[str, Any]] = None
+
     # Metadata
     metadata: Dict[str, Any] = field(default_factory=dict)
 
@@ -83,6 +88,7 @@ class ApplicationContext:
             "crawl_metadata": self.crawl_metadata,
             "evidence": self.evidence,
             "unified_model": self.unified_model,
+            "knowledge_model": self.knowledge_model,
             "metadata": self.metadata,
         }
 
