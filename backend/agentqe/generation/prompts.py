@@ -93,3 +93,21 @@ RETRIEVED RAG DOCUMENTS:
 
 Please generate the test cases in JSON format.
 """
+
+COMPACT_GENERATION_PROMPT_TEMPLATE = """
+REQUIREMENT:
+{requirement}
+
+RELEVANT APPLICATION ENTITIES:
+Pages: {pages}
+Controls: {controls}
+Forms: {forms}
+APIs: {apis}
+Flows: {flows}
+Modules: {modules}
+
+REPOSITORY CONTEXT: {repo_context}
+RAG DOCUMENTS: {rag_docs}
+
+Generate test cases based on the above context. Use only the entities listed.
+"""

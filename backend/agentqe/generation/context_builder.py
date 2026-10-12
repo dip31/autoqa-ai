@@ -1,15 +1,22 @@
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from agentqe.models.context import ApplicationContext
-from agentqe.rag.service import RAGService
 from .interfaces import IContextBuilder
 from .schemas import GenerationContext
+
+# Optional RAG import
+try:
+    from agentqe.rag.service import RAGService
+    RAG_AVAILABLE = True
+except ImportError:
+    RAG_AVAILABLE = False
+    RAGService = None
 
 logger = logging.getLogger(__name__)
 
 class DeterministicContextBuilder(IContextBuilder):
-    def __init__(self, rag_service: RAGService):
+    def __init__(self, rag_service: Optional[RAGService] = None):
         self.rag = rag_service
         
     def build(self, app_context: ApplicationContext, requirement: str) -> Dict[str, Any]:

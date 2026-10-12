@@ -7,6 +7,7 @@ from .schemas import RetrievalResult
 from .interfaces import IRAGService
 from .document_builder import DeterministicRAGDocumentBuilder
 from .index import LocalRAGIndex
+from .config import LOG_PREFIX, resolve_embedding_config
 
 logger = logging.getLogger(__name__)
 
@@ -14,17 +15,26 @@ class RAGService(IRAGService):
     def __init__(self, persist_dir: str = ".rag_storage"):
         self.persist_dir = persist_dir
         self.builder = DeterministicRAGDocumentBuilder()
-        self.index = LocalRAGIndex(persist_dir=persist_dir)
-        
+
+        # Resolve the embedding configuration up front and log it, so the chosen
+        # local model is visible in server logs before any indexing happens.
+        self.embed_config = resolve_embedding_config()
+        logger.info("%s Embedding provider: %s", LOG_PREFIX, self.embed_config.provider)
+        logger.info("%s Embedding model: %s", LOG_PREFIX, self.embed_config.model_name)
+
+        self.index = LocalRAGIndex(persist_dir=persist_dir, embed_config=self.embed_config)
+
         self.last_build_time = None
         self.document_count = 0
         self.is_ready = False
-        
-        # Try to load existing index
+
+        # Try to load existing index. This is best-effort: a failure here (e.g.
+        # no prior index, or the embed model not yet downloaded) must not raise —
+        # build_index will construct it on demand.
         try:
             self.index.load()
             self.is_ready = True
-            logger.info("Loaded existing RAG index")
+            logger.info("%s Loaded existing local vector index", LOG_PREFIX)
         except Exception:
             pass
 

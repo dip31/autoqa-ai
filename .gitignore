@@ -49,3 +49,15 @@ htmlcov/
 
 # Local database
 backend/database/autoqa.db
+
+# AgentQE runtime data, executions, traces, and screenshots
+backend/data/
+data/
+
+# Vector store & RAG storage
+backend/.rag_storage/
+.rag_storage/
+
+# Tool & accidental directories
+backend/backend/
+.kilo/

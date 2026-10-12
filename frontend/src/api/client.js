@@ -59,6 +59,13 @@ export const submitAgentQEReview   = (id, d)  => api.post(`/api/agentqe/review/$
 export const understandApplication = (data)   => api.post('/api/agentqe/application/understand', data);
 export const queryApplication = (data)      => api.post('/api/agentqe/application/query', data);
 export const generateAgentQETests  = (data)   => api.post('/api/agentqe/tests/generate', data);
+export const prioritizeAgentQETests = (data) => api.post('/api/agentqe/tests/prioritize', data);
+
+// AgentQE — Phase 5 Test Execution
+export const executeAgentQETests     = (data)  => api.post('/api/agentqe/tests/execute', data);
+export const executeAgentQETest      = (id, d) => api.post(`/api/agentqe/tests/execute/${id}`, d || {});
+export const getAgentQEExecution      = (id)   => api.get(`/api/agentqe/executions/${id}`);
+export const getAgentQEExecutions     = (params) => api.get('/api/agentqe/executions', { params });
 
 // QA-to-Dev Bridge
 export const analyzeQADevBridge    = (qa_data, system_mode) =>

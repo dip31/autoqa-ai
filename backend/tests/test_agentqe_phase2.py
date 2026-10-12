@@ -147,10 +147,31 @@ def test_api_endpoint_success(mock_context, monkeypatch):
     app.config["TESTING"] = True
     app.config["JWT_SECRET_KEY"] = "test-secret"
     
-    def mock_generate_testcases(req):
-        return {"testcases": [{"title": "Mocked test"}]}
-        
-    monkeypatch.setattr("agentqe.agents.user_agents.generate_testcases", mock_generate_testcases)
+    # Mock the Groq model generate method
+    import json
+    
+    def mock_generate(*args, **kwargs):
+        return json.dumps({
+            "test_cases": [{
+                "test_id": "USER-001",
+                "title": "Mocked Test",
+                "description": "A mocked test",
+                "perspective": "USER",
+                "test_type": "UI",
+                "steps": ["step 1"],
+                "expected_result": "Success",
+                "requirement_refs": [],
+                "page_refs": [],
+                "control_refs": [],
+                "form_refs": [],
+                "api_refs": [],
+                "flow_refs": [],
+                "evidence_refs": []
+            }]
+        })
+    
+    # Patch the generate method on the class
+    monkeypatch.setattr("agentqe.generation.models.GroqTestGenerationModel.generate", mock_generate)
     
     with app.test_client() as client:
         # Mock auth
@@ -164,8 +185,8 @@ def test_api_endpoint_success(mock_context, monkeypatch):
         assert res.status_code == 200
         data = res.get_json()
         assert data["success"] is True
-        assert "test_plan" in data
-        assert "user_tests" in data
-        assert "engineering_tests" in data
+        assert "generation_summary" in data
         assert "candidate_tests" in data
+        assert "generators" in data
         assert len(data["candidate_tests"]) > 0
+        assert data["generation_summary"]["final_tests"] > 0

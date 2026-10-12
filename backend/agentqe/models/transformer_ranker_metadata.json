@@ -1,0 +1,43 @@
+{
+  "model_version": "agentqe-transformer-bootstrap-v1",
+  "training_data_type": "synthetic",
+  "feature_count": 9,
+  "features": [
+    "requirement_relevance",
+    "risk_relevance",
+    "coverage",
+    "api_relevance",
+    "execution_complexity",
+    "evidence_confidence",
+    "cross_modal_evidence",
+    "test_layer_signal",
+    "traceability_completeness"
+  ],
+  "dataset_size": 10000,
+  "seed": 42,
+  "train_split": 0.7,
+  "val_split": 0.15,
+  "test_split": 0.15,
+  "epochs": 30,
+  "batch_size": 32,
+  "learning_rate": 0.001,
+  "weight_decay": 1e-05,
+  "loss_function": "mse",
+  "early_stopping_patience": 5,
+  "architecture": {
+    "input_dim": 9,
+    "d_model": 64,
+    "nhead": 4,
+    "num_layers": 2
+  },
+  "training_timestamp": "2026-09-28T15:32:43.657523",
+  "final_train_loss": 0.0003427698894973638,
+  "final_val_loss": 0.0008565076177806727,
+  "test_loss": 0.0009016562179452412,
+  "train_size": 6631,
+  "val_size": 1104,
+  "test_size": 2265,
+  "total_epochs_trained": 16,
+  "best_val_loss": 0.00023776367556170694,
+  "device": "cpu"
+}

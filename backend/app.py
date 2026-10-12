@@ -1343,16 +1343,95 @@ def api_agentqe_tests_generate():
             max_tests=max_tests
         )
         
+        # Return appropriate HTTP status based on generation status
+        status_code = 200
+        if result.get("status") == "failed":
+            status_code = 500
+        elif result.get("status") == "partial_failure":
+            status_code = 207  # Multi-status for partial failure
+
         return jsonify({
-            "success": True,
+            "success": result.get("status") != "failed",
+            "status": result.get("status"),
             "generation_summary": result.get("generation_summary"),
             "candidate_tests": result.get("candidate_tests", []),
-            "errors": result.get("errors", [])
-        })
+            "generators": result.get("generators", []),
+        }), status_code
         
     except Exception as e:
         app.logger.error(f"Test generation failed: {e}")
         return jsonify({"error": f"Test generation failed: {str(e)}"}), 500
+
+
+@app.route("/api/agentqe/tests/prioritize", methods=["POST"])
+@jwt_required()
+def api_agentqe_tests_prioritize():
+    from agentqe.models.test_case import CandidateTest
+    from agentqe.models.context import ApplicationContext
+    from agentqe.prioritization.service import TestPrioritizationService
+    from agentqe.knowledge.schemas import ApplicationKnowledgeModel
+
+    try:
+        data = request.get_json() or {}
+        candidate_tests_data = data.get("candidate_tests", [])
+        context_data = data.get("application_context")
+        knowledge_model_data = data.get("knowledge_model")
+        unified_model_data = data.get("unified_model")
+        rag_context = data.get("rag_context")
+        execution_history = data.get("execution_history", {})
+        repository_data = data.get("repository_data", {})
+
+        if not candidate_tests_data:
+            return jsonify({"error": "candidate_tests is required"}), 400
+
+        # Parse candidate tests
+        candidate_tests = []
+        for tc_data in candidate_tests_data:
+            # Ensure required fields are present
+            if "test_id" not in tc_data or "title" not in tc_data:
+                logger.warning(f"Skipping test data missing required fields: {tc_data}")
+                continue
+            
+            # Create CandidateTest with provided data
+            candidate_tests.append(CandidateTest(**tc_data))
+
+        # Parse application context if provided
+        app_context = None
+        if context_data:
+            valid_ctx_fields = {k: v for k, v in context_data.items() if hasattr(ApplicationContext, k)}
+            app_context = ApplicationContext(**valid_ctx_fields)
+
+        # Parse knowledge model if provided
+        knowledge_model = None
+        if knowledge_model_data:
+            try:
+                knowledge_model = ApplicationKnowledgeModel.from_dict(knowledge_model_data)
+            except Exception:
+                knowledge_model = None
+
+        # Run prioritization
+        prioritization_service = TestPrioritizationService()
+        result = prioritization_service.prioritize(
+            tests=candidate_tests,
+            app_context=app_context,
+            knowledge_model=knowledge_model,
+            unified_model=unified_model_data,
+            rag_context=rag_context,
+            execution_history=execution_history,
+            repository_data=repository_data,
+        )
+
+        return jsonify({
+            "success": True,
+            "ranked_tests": result.to_dict()["ranked_tests"],
+            "enrichment_summary": result.to_dict()["enrichment_summary"],
+            "ranking_metadata": result.to_dict()["ranking_metadata"],
+        })
+
+    except Exception as e:
+        app.logger.error(f"Test prioritization failed: {e}")
+        return jsonify({"error": f"Test prioritization failed: {str(e)}"}), 500
+
 
 @jwt_required()
 def review_autonomous_run(run_id):
@@ -1416,6 +1495,296 @@ def review_autonomous_run(run_id):
         "success": True,
         "decision": decision
     })
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Phase 5 — AgentQE Test Execution
+#
+# Routes:
+#   POST /api/agentqe/tests/execute                 execute a batch of tests
+#   POST /api/agentqe/tests/execute/<test_id>       execute a single test
+#   GET  /api/agentqe/executions/<execution_id>     one execution + evidence
+#   GET  /api/agentqe/executions                    execution history / filters
+#
+# Phase 5 executes tests; it does NOT analyse failures. No root-cause,
+# severity, novelty, or self-healing fields appear in these responses.
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _agentqe_execution_service():
+    """Build an ExecutionService wired with persistence, tolerating no DB."""
+    from agentqe.execution.config import get_execution_config
+    from agentqe.execution.execution_planner import ExecutionPlanner
+    from agentqe.execution.execution_service import ExecutionService
+    from agentqe.execution.persistence import ExecutionRepository
+    from agentqe.execution.playwright_executor import PlaywrightTestExecutor
+
+    config = get_execution_config()
+    return ExecutionService(
+        planner=ExecutionPlanner(config),
+        executor=PlaywrightTestExecutor(config),
+        repository=ExecutionRepository(),
+        config=config,
+    )
+
+
+def _coerce_candidate_tests(raw):
+    """Parse candidate tests, skipping (and reporting) malformed entries.
+
+    Accepts bare CandidateTest dicts and Phase 4 ``RankedTest`` wrappers
+    (``{"test": {...}, "bootstrap_score": ..., "ranking_mode": ...}``).
+    Returns CandidateTest instances with ranking provenance attached as extra
+    attributes so Phase 5 results keep their rank, score, ranking mode, and
+    feature provenance; the execution service extracts them via getattr.
+    """
+    from agentqe.models.test_case import CandidateTest
+
+    parsed, skipped = [], []
+    for entry in raw or []:
+        if not isinstance(entry, dict):
+            skipped.append({"entry": str(entry)[:120], "reason": "not an object"})
+            continue
+        payload = entry
+        ranked_wrapper = "test" in entry and isinstance(entry.get("test"), dict)
+        if ranked_wrapper:
+            payload = entry["test"]
+        if not payload.get("test_id") or not payload.get("title"):
+            skipped.append({"entry": str(entry)[:120], "reason": "missing test_id or title"})
+            continue
+        known = set(getattr(CandidateTest, "__dataclass_fields__", {}))
+        try:
+            ct = CandidateTest(**{k: v for k, v in payload.items() if k in known})
+        except TypeError as exc:
+            skipped.append({"entry": str(entry)[:120], "reason": str(exc)[:160]})
+            continue
+        if ranked_wrapper:
+            w = entry
+            if "bootstrap_score" in w:
+                ct.bootstrap_score = w["bootstrap_score"]
+                ct.score = w["bootstrap_score"]
+            if "final_score" in w:
+                ct.final_score = w["final_score"]
+            if "total_score" in w:
+                ct.total_score = w["total_score"]
+            if "priority_score" in w:
+                ct.priority_score = w["priority_score"]
+            if "rank" in w:
+                ct.rank = w["rank"]
+            if "ranking_mode" in w:
+                ct.ranking_mode = w["ranking_mode"]
+            if "model_status" in w:
+                ct.model_status = w["model_status"]
+            if "model_version" in w:
+                ct.model_version = w["model_version"]
+            if "feature_version" in w:
+                ct.feature_version = w["feature_version"]
+            if "predicted_priority" in w:
+                ct.predicted_priority = w["predicted_priority"]
+            if "feature_contributions" in w:
+                ct.feature_contributions = w["feature_contributions"]
+            if "features" in w:
+                ct.features = w["features"]
+            if "feature_vector" in w:
+                ct.feature_vector = w["feature_vector"]
+            if "explanation" in w:
+                ct.explanation = w["explanation"]
+        parsed.append(ct)
+    return parsed, skipped
+
+
+@app.route("/api/agentqe/tests/execute", methods=["POST"])
+@jwt_required()
+def api_agentqe_tests_execute():
+    """Execute a batch of CandidateTest/RankedTest objects in rank order."""
+    from agentqe.models.context import ApplicationContext
+
+    user_id = int(get_jwt_identity())
+    data = request.get_json() or {}
+
+    raw_tests = data.get("tests") or data.get("ranked_tests") or data.get("candidate_tests")
+    if not raw_tests:
+        return jsonify({"error": "tests is required"}), 400
+
+    candidate_tests, skipped = _coerce_candidate_tests(raw_tests)
+    if not candidate_tests:
+        return jsonify({
+            "error": "no valid tests were supplied",
+            "skipped": skipped,
+        }), 400
+
+    base_url = data.get("base_url") or data.get("target_url") or ""
+
+    app_context = None
+    context_data = data.get("application_context")
+    if isinstance(context_data, dict) and context_data:
+        valid = {k: v for k, v in context_data.items() if hasattr(ApplicationContext, k)}
+        try:
+            app_context = ApplicationContext(**valid)
+        except TypeError:
+            app_context = None
+
+    try:
+        service = _agentqe_execution_service()
+        run_result = service.execute_tests(
+            candidate_tests,
+            base_url=base_url or None,
+            application_context=app_context,
+            context={
+                "user_id": user_id,
+                "application_id": data.get("application_id"),
+                "autonomous_run_id": data.get("autonomous_run_id"),
+            },
+            persist=True,
+        )
+    except Exception as exc:
+        app.logger.error("Phase 5 batch execution failed: %s", exc)
+        return jsonify({"error": f"Test execution failed: {exc}"}), 500
+
+    return jsonify({
+        "success": True,
+        "execution_run_id": run_result.execution_run_id,
+        "summary": run_result.summary.to_dict(),
+        "results": [r.to_dict() for r in run_result.results],
+        "persisted": run_result.persisted,
+        "started_at": run_result.started_at,
+        "completed_at": run_result.completed_at,
+        "skipped_inputs": skipped,
+        "browser_use_enabled": bool(
+            (run_result.metadata.get("config") or {}).get("browser_use_enabled")
+        ),
+    })
+
+
+@app.route("/api/agentqe/tests/execute/<test_id>", methods=["POST"])
+@jwt_required()
+def api_agentqe_tests_execute_single(test_id):
+    """Execute one CandidateTest by its test_id."""
+    from agentqe.models.context import ApplicationContext
+
+    user_id = int(get_jwt_identity())
+    data = request.get_json(silent=True) or {}
+
+    raw = data.get("test") or data.get("candidate_test")
+    if raw is None:
+        raw = {
+            "test_id": test_id,
+            "title": data.get("title") or test_id,
+            "test_type": data.get("test_type") or "UI",
+            "target": data.get("target") or "",
+            "priority": data.get("priority") or "Medium",
+            "steps": data.get("steps") or [],
+            "expected_result": data.get("expected_result") or "",
+        }
+
+    candidate_tests, skipped = _coerce_candidate_tests([raw])
+    if not candidate_tests:
+        return jsonify({"error": "no valid test was supplied", "skipped": skipped}), 400
+    single = candidate_tests[0]
+    if single.test_id != test_id:
+        single.test_id = test_id
+
+    app_context = None
+    context_data = data.get("application_context")
+    if isinstance(context_data, dict) and context_data:
+        valid = {k: v for k, v in context_data.items() if hasattr(ApplicationContext, k)}
+        try:
+            app_context = ApplicationContext(**valid)
+        except TypeError:
+            app_context = None
+
+    try:
+        service = _agentqe_execution_service()
+        result = service.execute_test(
+            single,
+            base_url=data.get("base_url") or data.get("target_url") or None,
+            application_context=app_context,
+            context={
+                "user_id": user_id,
+                "application_id": data.get("application_id"),
+                "autonomous_run_id": data.get("autonomous_run_id"),
+            },
+            persist=True,
+        )
+    except Exception as exc:
+        app.logger.error("Phase 5 single execution failed: %s", exc)
+        return jsonify({"error": f"Test execution failed: {exc}"}), 500
+
+    return jsonify({
+        "success": True,
+        "execution": result.to_dict(),
+    })
+
+
+@app.route("/api/agentqe/executions/<execution_id>", methods=["GET"])
+@jwt_required()
+def api_agentqe_execution_detail(execution_id):
+    """One execution with its steps, assertions, and artifact references."""
+    from agentqe.execution.persistence import ExecutionRepository
+
+    user_id = int(get_jwt_identity())
+    repository = ExecutionRepository()
+    if not repository.available:
+        return jsonify({"error": "execution storage is unavailable"}), 503
+
+    record = repository.get_execution(execution_id)
+    if not record:
+        return jsonify({"error": "Execution not found"}), 404
+    if record.get("user_id") is not None and int(record["user_id"]) != user_id:
+        return jsonify({"error": "Execution not found"}), 404
+
+    return jsonify({
+        "success": True,
+        "execution": record,
+        "evidence": {
+            "screenshots": record.get("screenshots") or [],
+            "network": record.get("network_evidence") or [],
+            "console_errors": record.get("console_errors") or [],
+            "artifacts": record.get("artifacts") or [],
+            "trace_path": record.get("trace_path"),
+            "evidence_refs": record.get("evidence_refs") or [],
+        },
+    })
+
+
+@app.route("/api/agentqe/executions", methods=["GET"])
+@jwt_required()
+def api_agentqe_executions_list():
+    """Execution history, filterable and ordered by Phase 4 rank."""
+    from agentqe.execution.persistence import ExecutionRepository
+
+    user_id = int(get_jwt_identity())
+    repository = ExecutionRepository()
+    if not repository.available:
+        return jsonify({"error": "execution storage is unavailable"}), 503
+
+    try:
+        limit = min(int(request.args.get("limit", 50)), 200)
+        offset = max(int(request.args.get("offset", 0)), 0)
+    except (TypeError, ValueError):
+        return jsonify({"error": "limit and offset must be integers"}), 400
+
+    records = repository.list_executions(
+        execution_run_id=request.args.get("execution_run_id"),
+        user_id=user_id,
+        test_id=request.args.get("test_id"),
+        status=request.args.get("status"),
+        limit=limit,
+        offset=offset,
+    )
+    summary = repository.summarise(
+        request.args.get("execution_run_id")
+    ) if request.args.get("execution_run_id") else None
+
+    return jsonify({
+        "success": True,
+        "executions": records,
+        "count": len(records),
+        "limit": limit,
+        "offset": offset,
+        "summary": summary,
+    })
+
+
 if __name__ == "__main__":
     import os
     port = int(os.environ.get("PORT", 5001))

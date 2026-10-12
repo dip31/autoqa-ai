@@ -4,10 +4,11 @@ import {
   MdCheckCircle, MdError, MdInfo, MdOutlineHealthAndSafety,
   MdAutoFixNormal, MdSettingsBackupRestore, MdTimeline,
   MdArrowForward, MdOutlineAnalytics, MdOutlineRule,
-  MdOutlineLanguage, MdOutlineAssessment, MdOutlineFactCheck
+  MdOutlineLanguage, MdOutlineAssessment, MdOutlineFactCheck,
+  MdOutlineFormatListBulleted
 } from 'react-icons/md';
 import { RiRobot2Line, RiLoader4Line, RiHistoryLine, RiShieldFlashLine, RiMagicLine, RiGithubFill, RiUserLine, RiSendPlaneFill, RiCloseLine, RiArrowRightLine } from 'react-icons/ri';
-import { runAgentQE, getAutonomousRunDetails, submitAgentQEReview, getAutonomousRuns, getTeamUsers, sendMessage, understandApplication, generateAgentQETests } from '../api/client';
+import { runAgentQE, getAutonomousRunDetails, submitAgentQEReview, getAutonomousRuns, getTeamUsers, sendMessage, understandApplication, generateAgentQETests, prioritizeAgentQETests, executeAgentQETests } from '../api/client';
 import Loader from '../components/Loader';
 import ScoreBadge from '../components/ScoreBadge';
 import KnowledgeModelUI from '../components/KnowledgeModelUI';
@@ -38,6 +39,18 @@ export default function AgentQE() {
   const [testGenerationLoading, setTestGenerationLoading] = useState(false);
   const [testGenerationError, setTestGenerationError] = useState(null);
 
+  // Test Prioritization state
+  const [testPrioritization, setTestPrioritization] = useState(null);
+  const [testPrioritizationLoading, setTestPrioritizationLoading] = useState(false);
+  const [testPrioritizationError, setTestPrioritizationError] = useState(null);
+
+  // Phase 5 — Test Execution state
+  const [testExecution, setTestExecution] = useState(null);
+  const [testExecutionLoading, setTestExecutionLoading] = useState(false);
+  const [testExecutionError, setTestExecutionError] = useState(null);
+  const [executionBaseUrl, setExecutionBaseUrl] = useState('');
+  const [expandedExecution, setExpandedExecution] = useState(null);
+
   const handleGenerateTests = async () => {
     if (!appUnderstanding) {
       alert("Please run App Understanding first");
@@ -57,11 +70,80 @@ export default function AgentQE() {
     }
   };
 
+  const handlePrioritizeTests = async () => {
+    if (!testGeneration?.candidate_tests || testGeneration.candidate_tests.length === 0) {
+      alert("Please generate tests first");
+      return;
+    }
+    setTestPrioritizationLoading(true);
+    setTestPrioritizationError(null);
+    setTestPrioritization(null);
+    try {
+      const payload = {
+        candidate_tests: testGeneration.candidate_tests,
+        application_context: appUnderstanding,
+        knowledge_model: appUnderstanding?.knowledge_model,
+        unified_model: appUnderstanding?.unified_model,
+        rag_context: appUnderstanding?.rag_context,
+      };
+      const res = await prioritizeAgentQETests(payload);
+      setTestPrioritization(res.data);
+      setActiveTab('Test Prioritization');
+    } catch (err) {
+      setTestPrioritizationError(err.response?.data?.error || "Test prioritization failed");
+    } finally {
+      setTestPrioritizationLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (showShareModal) {
       getTeamUsers().then(res => setTeam(res.data.users || []));
     }
   }, [showShareModal]);
+
+  // ── Phase 5: Test Execution ────────────────────────────────────────────
+  const EXEC_STATUS_STYLE = {
+    passed:      'bg-emerald-100 text-emerald-700',
+    failed:      'bg-red-100 text-red-700',
+    timeout:     'bg-orange-100 text-orange-700',
+    error:       'bg-rose-100 text-rose-700',
+    blocked:     'bg-amber-100 text-amber-700',
+    unsupported: 'bg-slate-200 text-slate-600',
+    skipped:     'bg-slate-100 text-slate-500',
+  };
+
+  const execStatusStyle = (status) =>
+    EXEC_STATUS_STYLE[status] || 'bg-slate-100 text-slate-600';
+
+  const handleExecuteTests = async () => {
+    const ranked = testPrioritization?.ranked_tests;
+    if (!ranked || ranked.length === 0) {
+      alert('Please prioritize tests first');
+      return;
+    }
+    if (!executionBaseUrl.trim()) {
+      alert('Enter the application base URL to run against (e.g. http://localhost:5000)');
+      return;
+    }
+    setTestExecutionLoading(true);
+    setTestExecutionError(null);
+    setTestExecution(null);
+    setExpandedExecution(null);
+    try {
+      const res = await executeAgentQETests({
+        tests: ranked,
+        base_url: executionBaseUrl.trim(),
+        application_context: appUnderstanding,
+      });
+      setTestExecution(res.data);
+      setActiveTab('Test Execution');
+    } catch (err) {
+      setTestExecutionError(err.response?.data?.error || 'Test execution failed');
+    } finally {
+      setTestExecutionLoading(false);
+    }
+  };
 
   const handleShare = async () => {
     if (!selectedRecipient) return alert("Select a recipient");
@@ -1008,7 +1090,7 @@ Summary: ${runDetails.report.executive_summary}
               {/* Interaction Tabs */}
               <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm min-h-[500px] flex flex-col">
                 <div className="flex border-b border-slate-100 shrink-0 overflow-x-auto no-scrollbar bg-slate-50/50">
-                  {['Overview', 'Test Cases', 'Browser Actions', 'Auto-Heal', 'Final Report', 'App Understanding', 'Unified Model', 'Knowledge Model', 'Test Generation'].map(tab => (
+                  {['Overview', 'Test Cases', 'Browser Actions', 'Auto-Heal', 'Final Report', 'App Understanding', 'Unified Model', 'Knowledge Model', 'Test Generation', 'Test Prioritization', 'Test Execution'].map(tab => (
                     <button
                       key={tab}
                       onClick={() => setActiveTab(tab)}
@@ -1019,6 +1101,11 @@ Summary: ${runDetails.report.executive_summary}
                       {tab}
                       {tab === 'Auto-Heal' && runDetails?.healing?.length > 0 && (
                         <span className="ml-2 bg-amber-500 text-white px-1.5 py-0.5 rounded-full text-[9px]">{runDetails.healing.length}</span>
+                      )}
+                      {tab === 'Test Execution' && testExecution?.summary?.executed > 0 && (
+                        <span className="ml-2 bg-emerald-500 text-white px-1.5 py-0.5 rounded-full text-[9px]">
+                          {testExecution.summary.passed}/{testExecution.summary.executed}
+                        </span>
                       )}
                     </button>
                   ))}
@@ -2136,6 +2223,452 @@ Summary: ${runDetails.report.executive_summary}
 
                       {testGeneration && (
                         <TestGenerationUI generationResult={testGeneration} />
+                      )}
+                    </div>
+                  )}
+
+                  {activeTab === 'Test Prioritization' && (
+                    <div className="space-y-8">
+                      {!testPrioritization && !testPrioritizationLoading && (
+                        <div className="bg-slate-100/50 border-2 border-dashed border-slate-200 rounded-3xl h-[400px] flex flex-col items-center justify-center text-center px-10">
+                          <MdOutlineAssessment className="text-slate-300 text-6xl mb-6" />
+                          <h3 className="text-lg font-bold text-slate-800 mb-2">Test Prioritization</h3>
+                          <p className="text-sm text-slate-500 max-w-sm mb-4">Rank tests using deterministic bootstrap prioritization based on requirements, risk, coverage, and evidence.</p>
+                          <button
+                            onClick={handlePrioritizeTests}
+                            disabled={!testGeneration || testPrioritizationLoading}
+                            className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg transition-all disabled:opacity-50"
+                          >
+                            Prioritize Tests
+                          </button>
+                        </div>
+                      )}
+                      
+                      {testPrioritizationLoading && (
+                        <div className="flex flex-col items-center justify-center h-[400px]">
+                          <RiLoader4Line className="animate-spin text-4xl text-emerald-600 mb-4" />
+                          <p className="text-sm font-bold text-slate-500">Prioritizing Tests with Bootstrap Ranking...</p>
+                        </div>
+                      )}
+                      
+                      {testPrioritizationError && (
+                        <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700">
+                          <p className="font-bold">Prioritization Failed</p>
+                          <p className="text-sm mt-1">{testPrioritizationError}</p>
+                        </div>
+                      )}
+
+                      {testPrioritization && (
+                        <div className="space-y-6">
+                          {/* Ranking Metadata */}
+                          <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100 rounded-2xl p-6 shadow-sm">
+                            <div className="flex flex-wrap items-center gap-4 mb-4">
+                              <h3 className="text-xs font-black text-emerald-600 uppercase tracking-widest flex items-center gap-2">
+                                <MdOutlineAssessment className="text-emerald-500" /> Test Prioritization Results
+                              </h3>
+                              <span className={`px-3 py-1 rounded-full text-[9px] font-bold uppercase ${
+                                testPrioritization.ranking_metadata?.model_status === 'trained' 
+                                  ? 'bg-violet-100 text-violet-700' 
+                                  : 'bg-amber-100 text-amber-700'
+                              }`}>
+                                {testPrioritization.ranking_metadata?.model_status === 'trained' 
+                                  ? 'Transformer Ranking' 
+                                  : 'Deterministic Bootstrap Ranking'}
+                              </span>
+                              <span className="px-2 py-1 bg-emerald-100 text-emerald-700 text-[9px] font-bold uppercase rounded">
+                                v{testPrioritization.ranking_metadata?.model_version || 'phase4-v1'}
+                              </span>
+                              <span className="px-2 py-1 bg-blue-100 text-blue-700 text-[9px] font-bold uppercase rounded">
+                                Features: {testPrioritization.ranking_metadata?.feature_version || 'phase4-v1'}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                              <div className="bg-white/80 p-3 rounded-xl border border-emerald-100">
+                                <p className="text-[10px] text-emerald-400 font-bold uppercase">Total Tests</p>
+                                <p className="text-lg font-black text-slate-800">{testPrioritization.enrichment_summary?.total || 0}</p>
+                              </div>
+                              <div className="bg-white/80 p-3 rounded-xl border border-emerald-100">
+                                <p className="text-[10px] text-emerald-400 font-bold uppercase">Enriched</p>
+                                <p className="text-lg font-black text-slate-800">{testPrioritization.enrichment_summary?.enriched || 0}</p>
+                              </div>
+                              <div className="bg-white/80 p-3 rounded-xl border border-emerald-100">
+                                <p className="text-[10px] text-emerald-400 font-bold uppercase">Failed Enrichment</p>
+                                <p className="text-lg font-black text-slate-800">{testPrioritization.enrichment_summary?.failed || 0}</p>
+                              </div>
+                              <div className="bg-white/80 p-3 rounded-xl border border-emerald-100">
+                                <p className="text-[10px] text-emerald-400 font-bold uppercase">Ranking Mode</p>
+                                <p className="text-lg font-black text-slate-800">{testPrioritization.ranking_metadata?.ranking_mode || 'bootstrap'}</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Ranked Tests Table */}
+                          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                              <MdOutlineAssessment className="text-emerald-500" /> Ranked Tests ({testPrioritization.ranked_tests?.length || 0})
+                            </h3>
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-left text-xs">
+                                <thead>
+                                  <tr className="text-slate-400 border-b border-slate-100 uppercase tracking-wider font-bold">
+                                    <th className="py-2 pl-2">Rank</th>
+                                    <th className="py-2">Test ID</th>
+                                    <th className="py-2">Title</th>
+                                    <th className="py-2">Layer</th>
+                                    <th className="py-2">Source</th>
+                                    <th className="py-2">Score</th>
+                                    <th className="py-2">Explanation</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-50">
+                                  {testPrioritization.ranked_tests?.map((rt, i) => (
+                                    <tr key={i} className="hover:bg-slate-50/50">
+                                      <td className="py-3 pl-2 font-mono text-[10px] text-emerald-600 font-bold">#{rt.rank}</td>
+                                      <td className="py-3 font-mono text-[10px] text-slate-600">{rt.test?.test_id || '—'}</td>
+                                      <td className="py-3 text-slate-700 max-w-[200px] truncate" title={rt.test?.title}>{rt.test?.title || '—'}</td>
+                                      <td className="py-3">
+                                        <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase bg-violet-100 text-violet-700">
+                                          {rt.test?.test_type || '—'}
+                                        </span>
+                                      </td>
+                                      <td className="py-3">
+                                        <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase bg-blue-100 text-blue-700">
+                                          {rt.test?.source_agent || '—'}
+                                        </span>
+                                      </td>
+                                      <td className="py-3 font-bold text-emerald-700">{rt.bootstrap_score?.toFixed(3) || '—'}</td>
+                                      <td className="py-3 text-slate-600 max-w-[300px] truncate" title={rt.explanation}>{rt.explanation || '—'}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+
+                          {/* Feature Contributions Detail */}
+                          {testPrioritization.ranked_tests && testPrioritization.ranked_tests.length > 0 && (
+                            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                <MdOutlineAnalytics className="text-emerald-500" /> Feature Contributions (Top 3 Tests)
+                              </h3>
+                              <div className="space-y-4">
+                                {testPrioritization.ranked_tests.slice(0, 3).map((rt, i) => (
+                                  <div key={i} className="border border-slate-100 rounded-xl p-4 bg-slate-50/30">
+                                    <div className="flex items-center gap-3 mb-3">
+                                      <span className="px-2 py-1 bg-emerald-100 text-emerald-700 text-[9px] font-bold uppercase rounded">Rank #{rt.rank}</span>
+                                      <span className="px-2 py-1 bg-violet-100 text-violet-700 text-[9px] font-bold uppercase rounded">{rt.test?.test_id}</span>
+                                      <span className="text-sm font-bold text-slate-800">{rt.test?.title}</span>
+                                      <span className="ml-auto px-2 py-1 bg-emerald-100 text-emerald-700 text-[9px] font-bold uppercase rounded">Score: {rt.bootstrap_score?.toFixed(3)}</span>
+                                    </div>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
+                                      {Object.entries(rt.feature_contributions || {}).map(([name, value]) => (
+                                        <div key={name} className="bg-white p-2 rounded-lg border border-slate-100">
+                                          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">{name.replace(/_/g, ' ')}</p>
+                                          <p className="text-sm font-bold text-slate-800">{value?.toFixed(4) || '0'}</p>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Bootstrap Weights Reference */}
+                          {testPrioritization.ranking_metadata && (
+                            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                <MdOutlineFactCheck className="text-amber-500" /> Bootstrap Weights (Deterministic)
+                              </h3>
+                              <div className="space-y-2 text-sm">
+                                {Object.entries(testPrioritization.ranking_metadata.bootstrap_weights || {}).map(([name, weight]) => (
+                                  <div key={name} className="flex items-center justify-between py-1 px-2 bg-slate-50 rounded-lg">
+                                    <span className="text-slate-600">{name.replace(/_/g, ' ')}</span>
+                                    <span className="font-bold text-emerald-700">{(weight * 100).toFixed(0)}%</span>
+                                  </div>
+                                ))}
+                              </div>
+                              <p className="text-[10px] text-slate-400 mt-3 text-center">
+                                Weights are heuristic defaults, not learned. Sum = 100%.
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ═══ Phase 5: Test Execution ═══ */}
+                  {activeTab === 'Test Execution' && (
+                    <div className="space-y-8">
+                      {!testExecution && !testExecutionLoading && (
+                        <div className="bg-slate-100/50 border-2 border-dashed border-slate-200 rounded-3xl p-10 flex flex-col items-center justify-center text-center">
+                          <MdOutlinePlayCircle className="text-slate-300 text-6xl mb-6" />
+                          <h3 className="text-lg font-bold text-slate-800 mb-2">Test Execution</h3>
+                          <p className="text-sm text-slate-500 max-w-md mb-6">
+                            Run your ranked tests against a live application with Playwright.
+                            Each test executes in an isolated browser context, in priority order.
+                          </p>
+
+                          <div className="w-full max-w-md mb-6 text-left">
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                              Application Base URL
+                            </label>
+                            <div className="relative">
+                              <MdOutlineLanguage className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                              <input
+                                type="text"
+                                value={executionBaseUrl}
+                                onChange={(e) => setExecutionBaseUrl(e.target.value)}
+                                placeholder="http://localhost:5000"
+                                className="w-full pl-12 pr-4 py-3 bg-white border-2 border-slate-100 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:border-slate-900 transition-all"
+                              />
+                            </div>
+                            <p className="text-[10px] text-slate-400 mt-2">
+                              Runs only against a local or explicitly provided application. No external site is contacted.
+                            </p>
+                          </div>
+
+                          <button
+                            onClick={handleExecuteTests}
+                            disabled={!testPrioritization?.ranked_tests?.length}
+                            className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg transition-all disabled:opacity-50"
+                          >
+                            {testPrioritization?.ranked_tests?.length
+                              ? `Execute ${testPrioritization.ranked_tests.length} Ranked Test(s)`
+                              : 'Prioritize Tests First'}
+                          </button>
+                        </div>
+                      )}
+
+                      {testExecutionLoading && (
+                        <div className="flex flex-col items-center justify-center h-[400px]">
+                          <RiLoader4Line className="animate-spin text-4xl text-emerald-600 mb-4" />
+                          <p className="text-sm font-bold text-slate-500">Executing tests with Playwright...</p>
+                          <p className="text-xs text-slate-400 mt-2">Each test runs in its own isolated browser context.</p>
+                        </div>
+                      )}
+
+                      {testExecutionError && (
+                        <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700">
+                          <p className="font-bold">Execution Failed</p>
+                          <p className="text-sm mt-1">{testExecutionError}</p>
+                        </div>
+                      )}
+
+                      {testExecution && (
+                        <div className="space-y-6">
+                          {/* Run Summary */}
+                          <div className="bg-gradient-to-br from-violet-50 to-slate-50 border border-violet-100 rounded-2xl p-6 shadow-sm">
+                            <div className="flex flex-wrap items-center gap-3 mb-4">
+                              <h3 className="text-xs font-black text-violet-600 uppercase tracking-widest flex items-center gap-2">
+                                <MdOutlinePlayCircle className="text-violet-500" /> Execution Summary
+                              </h3>
+                              <span className="px-2 py-1 bg-slate-100 text-slate-600 text-[9px] font-bold uppercase rounded">
+                                Playwright
+                              </span>
+                              {testExecution.browser_use_enabled && (
+                                <span className="px-2 py-1 bg-amber-100 text-amber-700 text-[9px] font-bold uppercase rounded">
+                                  Browser Use Enabled
+                                </span>
+                              )}
+                              <span className="ml-auto text-[10px] font-mono text-slate-400">
+                                {testExecution.execution_run_id}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-3 text-sm">
+                              {[
+                                ['Total', testExecution.summary?.total, 'text-slate-800'],
+                                ['Passed', testExecution.summary?.passed, 'text-emerald-600'],
+                                ['Failed', testExecution.summary?.failed, 'text-red-600'],
+                                ['Timeout', testExecution.summary?.timeout, 'text-orange-600'],
+                                ['Error', testExecution.summary?.error, 'text-rose-600'],
+                                ['Blocked', testExecution.summary?.blocked, 'text-amber-600'],
+                                ['Unsupported', testExecution.summary?.unsupported, 'text-slate-500'],
+                                ['Skipped', testExecution.summary?.skipped, 'text-slate-400'],
+                              ].map(([label, value, cls]) => (
+                                <div key={label} className="bg-white/80 p-3 rounded-xl border border-violet-100 text-center">
+                                  <p className="text-[9px] text-slate-400 font-bold uppercase">{label}</p>
+                                  <p className={`text-lg font-black ${cls}`}>{value ?? 0}</p>
+                                </div>
+                              ))}
+                            </div>
+                            {testExecution.skipped_inputs?.length > 0 && (
+                              <p className="text-[10px] text-amber-600 mt-3">
+                                {testExecution.skipped_inputs.length} input(s) were not executable and were ignored.
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Execution Results */}
+                          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                              <MdOutlineFormatListBulleted className="text-violet-500" /> Results (Priority Order)
+                            </h3>
+                            <div className="space-y-2">
+                              {testExecution.results?.map((r) => {
+                                const isOpen = expandedExecution === r.execution_id;
+                                return (
+                                  <div key={r.execution_id} className="border border-slate-100 rounded-xl overflow-hidden">
+                                    <button
+                                      onClick={() => setExpandedExecution(isOpen ? null : r.execution_id)}
+                                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors text-left"
+                                    >
+                                      <span className="px-2 py-1 bg-slate-100 text-slate-600 text-[9px] font-bold uppercase rounded shrink-0">
+                                        #{r.rank_position ?? '—'}
+                                      </span>
+                                      <span className="font-mono text-[10px] text-slate-500 shrink-0 w-32 truncate">
+                                        {r.test_id}
+                                      </span>
+                                      <span className="text-xs text-slate-700 flex-1 truncate">
+                                        {r.metadata?.test_title || r.test_id}
+                                      </span>
+                                      <span className="text-[10px] text-slate-400 shrink-0 hidden md:inline">
+                                        {r.steps_completed}/{r.steps_total} steps
+                                      </span>
+                                      {r.duration_ms > 0 && (
+                                        <span className="text-[10px] text-slate-400 shrink-0 hidden lg:inline">
+                                          {Math.round(r.duration_ms)}ms
+                                        </span>
+                                      )}
+                                      <span className={`px-2 py-1 rounded text-[9px] font-bold uppercase shrink-0 ${execStatusStyle(r.status)}`}>
+                                        {r.status}
+                                      </span>
+                                    </button>
+
+                                    {isOpen && (
+                                      <div className="px-4 pb-4 pt-2 bg-slate-50/40 border-t border-slate-100 space-y-4">
+                                        {r.error && (
+                                          <div className="p-3 bg-red-50 border border-red-100 rounded-lg">
+                                            <p className="text-[10px] font-black text-red-400 uppercase tracking-widest mb-1">
+                                              {r.error_category || 'Error'}
+                                            </p>
+                                            <p className="text-xs text-red-700 break-words">{r.error}</p>
+                                          </div>
+                                        )}
+
+                                        {/* Steps */}
+                                        {r.steps?.length > 0 && (
+                                          <div>
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                                              Steps
+                                            </p>
+                                            <div className="space-y-1">
+                                              {r.steps.map((s) => (
+                                                <div key={s.index} className="flex items-center gap-2 text-[11px] bg-white rounded-lg px-3 py-2 border border-slate-100">
+                                                  <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase shrink-0 ${execStatusStyle(s.status)}`}>
+                                                    {s.status}
+                                                  </span>
+                                                  <span className="font-mono text-slate-500 shrink-0">{s.action}</span>
+                                                  <span className="text-slate-600 truncate flex-1">{s.target}</span>
+                                                  {s.selector_strategy && (
+                                                    <span className="text-[9px] text-slate-400 font-mono shrink-0" title={s.selector_used || ''}>
+                                                      {s.selector_strategy}
+                                                    </span>
+                                                  )}
+                                                  {s.error && <span className="text-[10px] text-red-500 truncate max-w-[200px]" title={s.error}>{s.error}</span>}
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
+
+                                        {/* Assertions */}
+                                        {r.assertions?.length > 0 && (
+                                          <div>
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                                              Assertions ({r.assertions_passed}/{r.assertions_total})
+                                            </p>
+                                            <div className="space-y-1">
+                                              {r.assertions.map((a, i) => (
+                                                <div key={i} className="flex items-center gap-2 text-[11px] bg-white rounded-lg px-3 py-2 border border-slate-100">
+                                                  <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase shrink-0 ${a.passed ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                                                    {a.passed ? 'pass' : 'fail'}
+                                                  </span>
+                                                  <span className="font-mono text-slate-500 shrink-0">{a.assertion_type}</span>
+                                                  <span className="text-slate-600 truncate flex-1">expected: {a.expected}</span>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
+
+                                        {/* Evidence */}
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px]">
+                                          <div className="bg-white rounded-lg p-2 border border-slate-100">
+                                            <p className="text-slate-400 font-bold uppercase">Executor</p>
+                                            <p className="text-slate-700 font-bold">{r.executor}</p>
+                                          </div>
+                                          <div className="bg-white rounded-lg p-2 border border-slate-100">
+                                            <p className="text-slate-400 font-bold uppercase">Screenshots</p>
+                                            <p className="text-slate-700 font-bold">{r.screenshots?.length || 0}</p>
+                                          </div>
+                                          <div className="bg-white rounded-lg p-2 border border-slate-100">
+                                            <p className="text-slate-400 font-bold uppercase">Console Errors</p>
+                                            <p className="text-slate-700 font-bold">{r.console_errors?.length || 0}</p>
+                                          </div>
+                                          <div className="bg-white rounded-lg p-2 border border-slate-100">
+                                            <p className="text-slate-400 font-bold uppercase">Trace</p>
+                                            <p className="text-slate-700 font-bold truncate">{r.trace_path || '—'}</p>
+                                          </div>
+                                        </div>
+
+                                        {r.screenshots?.length > 0 && (
+                                          <div>
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                                              Screenshots
+                                            </p>
+                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                              {r.screenshots.map((shot, i) => (
+                                                <div key={i} className="bg-white rounded-lg border border-slate-100 p-2">
+                                                  <p className="text-[9px] text-slate-500 font-bold truncate" title={shot.path}>
+                                                    {shot.label || shot.path}
+                                                  </p>
+                                                  <p className="text-[9px] text-slate-300 font-mono truncate" title={shot.path}>
+                                                    {shot.path}
+                                                  </p>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
+
+                                        {/* Ranking provenance */}
+                                        <div className="flex flex-wrap items-center gap-2 text-[9px]">
+                                          {r.ranking_mode && (
+                                            <span className="px-2 py-1 bg-violet-100 text-violet-700 rounded font-bold uppercase">
+                                              {r.ranking_mode}
+                                            </span>
+                                          )}
+                                          {r.model_status && (
+                                            <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded font-bold uppercase">
+                                              model: {r.model_status}
+                                            </span>
+                                          )}
+                                          {r.feature_version && (
+                                            <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded font-bold uppercase">
+                                              features: {r.feature_version}
+                                            </span>
+                                          )}
+                                          {r.priority_score != null && (
+                                            <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded font-bold uppercase">
+                                              score: {Number(r.priority_score).toFixed(3)}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          <p className="text-[10px] text-slate-400 text-center">
+                            Phase 5 records what happened during execution. Failure classification, root-cause
+                            analysis, and self-healing are Phase 6 features and are not inferred here.
+                          </p>
+                        </div>
                       )}
                     </div>
                   )}
