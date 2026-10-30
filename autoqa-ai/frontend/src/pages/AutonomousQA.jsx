@@ -7,7 +7,7 @@ import {
   MdAutoFixNormal, MdSettingsBackupRestore, MdTimeline
 } from 'react-icons/md';
 import { RiRobot2Line, RiLoader4Line, RiHistoryLine, RiShieldFlashLine, RiMagicLine, RiGithubFill, RiUserLine, RiSendPlaneFill, RiCloseLine } from 'react-icons/ri';
-import { runAutonomousQA, getAutonomousRuns, getAutonomousRunDetails, getTeamUsers, sendMessage } from '../api/client';
+import { runAutonomousQA, runAgentQE, submitAgentQEReview, getAutonomousRuns, getAutonomousRunDetails, getTeamUsers, sendMessage } from '../api/client';
 import Loader from '../components/Loader';
 import ScoreBadge from '../components/ScoreBadge';
 
@@ -24,6 +24,7 @@ export default function AutonomousQA() {
     repo_url: '',
     execution_mode: 'Full Autonomous Run'
   });
+  const [pipelineMode, setPipelineMode] = useState('standard'); // 'standard' | 'agentqe'
 
   useEffect(() => {
     if (showShareModal) {
@@ -114,7 +115,11 @@ Summary: ${runDetails.report.executive_summary}
     setLoading(true);
     setRunDetails(null);
     try {
-      const res = await runAutonomousQA(formData);
+      const apiFn = pipelineMode === 'agentqe' ? runAgentQE : runAutonomousQA;
+      const payload = pipelineMode === 'agentqe'
+        ? { ...formData, max_cycles: 3 }
+        : formData;
+      const res = await apiFn(payload);
       setActiveRunId(res.data.run_id);
       setActiveTab('Overview');
       startPolling(res.data.run_id);
@@ -245,12 +250,37 @@ Summary: ${runDetails.report.executive_summary}
                   />
                 </div>
               </div>
-              <button 
+
+              {/* Pipeline Mode Toggle */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                <p className="text-xs font-semibold text-slate-500 uppercase mb-2 ml-1">Pipeline Mode</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => setPipelineMode('standard')}
+                    className={`py-2 px-3 rounded-lg text-xs font-bold transition-all ${pipelineMode === 'standard' ? 'bg-blue-600 text-white shadow' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}`}>
+                    🤖 Standard
+                  </button>
+                  <button type="button" onClick={() => setPipelineMode('agentqe')}
+                    className={`py-2 px-3 rounded-lg text-xs font-bold transition-all ${pipelineMode === 'agentqe' ? 'bg-violet-600 text-white shadow' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}`}>
+                    ⚡ AgentQE ML
+                  </button>
+                </div>
+                {pipelineMode === 'agentqe' && (
+                  <p className="text-[10px] text-violet-600 mt-2 ml-1 font-medium">
+                    Uses ML ranking + multi-perspective generation + adaptive quality loop
+                  </p>
+                )}
+              </div>
+
+              <button
                 disabled={loading}
-                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-bold py-3 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 mt-2"
+                className={`w-full font-bold py-3 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 mt-2 disabled:opacity-50 ${
+                  pipelineMode === 'agentqe'
+                    ? 'bg-violet-600 hover:bg-violet-700 text-white'
+                    : 'bg-blue-600 hover:bg-blue-700 text-white'
+                }`}
               >
                 {loading ? <RiLoader4Line className="animate-spin text-xl" /> : <MdOutlineAutoFixHigh className="text-xl" />}
-                {loading ? 'Starting Agents...' : 'Run Autonomous QA'}
+                {loading ? 'Starting Agents...' : pipelineMode === 'agentqe' ? 'Run AgentQE Pipeline' : 'Run Autonomous QA'}
               </button>
             </form>
           </div>
@@ -272,7 +302,7 @@ Summary: ${runDetails.report.executive_summary}
                     <p className="text-sm font-semibold text-slate-800 truncate pr-4">{run.title}</p>
                     {renderStatusBadge(run.status)}
                   </div>
-                  <p className="text-[10px] text-slate-400">{new Date(run.created_at).toLocaleString()}</p>
+                  <p className="text-[10px] text-slate-400">{new Date(run.created_at + 'Z').toLocaleString()}</p>
                 </button>
               ))}
             </div>
@@ -314,7 +344,7 @@ Summary: ${runDetails.report.executive_summary}
                     )}
                  </div>
 
-                 {/* Stepper */}
+                 {/* Stepper - Enhanced for AgentQE */}
                  <div className="grid grid-cols-5 gap-2 relative">
                     <div className="absolute top-4 left-10 right-10 h-0.5 bg-slate-100" />
                     {[
@@ -333,7 +363,7 @@ Summary: ${runDetails.report.executive_summary}
                         <div key={step} className="flex flex-col items-center gap-2 z-10">
                           <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all ${
                             isPast ? 'bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-200' : 
-                            isActive ? 'bg-white border-blue-600 text-blue-600 ring-4 ring-blue-50' : 
+                            isActive ? 'bg-white border-blue-600 text-blue-600 ring-4 ring-blue-50 animate-pulse' : 
                             'bg-white border-slate-200 text-slate-300'
                           }`}>
                             <Icon />
@@ -343,6 +373,33 @@ Summary: ${runDetails.report.executive_summary}
                       );
                     })}
                  </div>
+                 
+                 {/* AgentQE Stage Detail */}
+                 {runDetails?.run?.execution_mode === 'AgentQE Pipeline' && runDetails?.logs && (
+                   <div className="mt-6 bg-violet-50/50 border border-violet-100 rounded-xl p-4">
+                     <p className="text-xs font-black text-violet-700 uppercase mb-3 flex items-center gap-2">
+                       <RiMagicLine /> AgentQE ML Pipeline Stages
+                     </p>
+                     <div className="space-y-2">
+                       {['STRATEGY', 'GENERATION', 'POOL', 'ENRICHMENT', 'RANKING', 'SELECTION', 'EXECUTION', 'FAILURE_ANALYSIS', 'PIPELINE'].map(stage => {
+                         const stageLogs = runDetails.logs.filter(l => l.action_type === stage);
+                         const hasStage = stageLogs.length > 0;
+                         const latestLog = stageLogs[stageLogs.length - 1];
+                         const isFailed = latestLog?.status === 'FAIL';
+                         
+                         return hasStage ? (
+                           <div key={stage} className="flex items-center justify-between text-xs bg-white px-3 py-2 rounded-lg">
+                             <span className="font-semibold text-slate-700 flex items-center gap-2">
+                               {isFailed ? <MdError className="text-red-500" /> : <MdCheckCircle className="text-emerald-500" />}
+                               {stage.replace(/_/g, ' ')}
+                             </span>
+                             <span className="text-[10px] text-slate-400">{stageLogs.length} ops</span>
+                           </div>
+                         ) : null;
+                       })}
+                     </div>
+                   </div>
+                 )}
               </div>
 
               {/* Interaction Tabs */}
@@ -447,7 +504,7 @@ Summary: ${runDetails.report.executive_summary}
                     <div className="bg-slate-900 rounded-2xl p-6 font-mono text-[11px] space-y-3 min-h-[400px]">
                        {runDetails?.logs?.map((l, i) => (
                           <div key={i} className="flex gap-4 group">
-                             <span className="text-slate-600 shrink-0">{new Date(l.timestamp).toLocaleTimeString()}</span>
+                             <span className="text-slate-600 shrink-0">{new Date(l.timestamp + 'Z').toLocaleTimeString()}</span>
                              <span className={`font-black shrink-0 ${l.status === 'FAIL' ? 'text-red-400' : 'text-emerald-400'}`}>[{l.status}]</span>
                              <span className="text-blue-400 shrink-0 text-right w-24">[{l.action_type}]</span>
                              <span className="text-slate-300 flex-1">{l.action_detail}</span>
@@ -502,7 +559,7 @@ Summary: ${runDetails.report.executive_summary}
                                      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${h.status === 'Success' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
                                         {h.status === 'Success' ? 'Auto-Healed' : 'Unresolved Failure'}
                                      </span>
-                                     <p className="text-[10px] text-slate-400 mt-2 font-bold tracking-widest">{new Date(h.timestamp).toLocaleTimeString()}</p>
+                                     <p className="text-[10px] text-slate-400 mt-2 font-bold tracking-widest">{new Date(h.timestamp + 'Z').toLocaleTimeString()}</p>
                                   </div>
                                </div>
 

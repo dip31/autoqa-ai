@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000',
+  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5001',
   headers: { 'Content-Type': 'application/json' },
   timeout: 60000,
 });
@@ -51,6 +51,12 @@ export const runAutonomousQA       = (data)   => api.post('/api/autonomous-qa/ru
 export const getAutonomousRuns     = ()       => api.get('/api/autonomous-qa/runs');
 export const getAutonomousRunDetails = (id)   => api.get(`/api/autonomous-qa/run/${id}`);
 
+// AgentQE — Advanced ML Pipeline
+export const runAgentQE            = (data)   => api.post('/api/agentqe/run', data);
+export const submitAgentQEReview   = (id, d)  => api.post(`/api/agentqe/review/${id}`, d);
+export const understandApplication = (data)   => api.post('/api/agentqe/application/understand', data);
+export const generateAgentQETests  = (data)   => api.post('/api/agentqe/tests/generate', data);
+
 // QA-to-Dev Bridge
 export const analyzeQADevBridge    = (qa_data, system_mode) =>
   api.post('/api/qa-dev-bridge/analyze', { qa_data, system_mode });
@@ -85,3 +91,19 @@ export const getChatSessions  = ()                     => api.get('/chat/session
 export const createChatSession= (title)                => api.post('/chat/sessions', { title });
 export const deleteChatSession= (id)                   => api.delete(`/chat/sessions/${id}`);
 export const getSessionMessages=(id)                   => api.get(`/chat/sessions/${id}/messages`);
+
+// Security Validation
+export const createSecurityRun    = (data)     => api.post('/api/security/run', data);
+export const getSecurityRuns      = ()          => api.get('/api/security/runs');
+export const getSecurityRunDetail = (id)        => api.get(`/api/security/run/${id}`);
+export const startSecurityRun     = (id)        => api.post(`/api/security/run/${id}/start`);
+export const cancelSecurityRun    = (id)        => api.post(`/api/security/run/${id}/cancel`);
+export const getSecurityRunFindings = (id)      => api.get(`/api/security/run/${id}/findings`);
+export const getFindingEvidence   = (id)        => api.get(`/api/security/finding/${id}/evidence`);
+export const createAuthorization  = (data)      => api.post('/api/security/authorize', data);
+export const verifyAuthorization  = (data)      => api.post('/api/security/authorize/verify', data);
+export const getAuthorizations    = ()          => api.get('/api/security/authorizations');
+export const revokeAuthorization  = (id)        => api.delete(`/api/security/authorizations/${id}`);
+export const generateSecurityReport = (id)    => api.get(`/api/security/run/${id}/report`);
+
+export default api;

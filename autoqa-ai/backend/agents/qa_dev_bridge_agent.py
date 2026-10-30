@@ -85,27 +85,32 @@ LOGS:
 """
 
     if system_mode == "QA_ONLY":
-        prompt = f"""You are a QA Analyst. Analyze these QA findings and produce insights.
-
-{context}
-
-Return strict JSON:
-{"summary": "2-3 paragraph professional QA summary",
-  "bug_analysis": [
-    {"bug": "bug name",
-      "severity": "Critical/High/Medium/Low",
-      "category": "UI/Backend/API/Logic/Performance",
-      "insight": "detailed analysis",
-      "test_coverage_gap": "what test was missing"
-    }
-  ],
-  "test_insights": {"total_bugs": {len(bugs)},
-    "critical_count": 0,
-    "high_count": 0,
-    "patterns_detected": ["pattern 1", "pattern 2"],
-    "most_affected_module": "module name",
-    "coverage_recommendation": "what to test next"
-  } } """
+        total_bugs = len(bugs)
+        prompt = (
+            "You are a QA Analyst. Analyze these QA findings and produce insights.\n\n"
+            + context
+            + f"\n\nReturn strict JSON:\n"
+            + "{\n"
+            + '  "summary": "2-3 paragraph professional QA summary",\n'
+            + '  "bug_analysis": [\n'
+            + '    {\n'
+            + '      "bug": "bug name",\n'
+            + '      "severity": "Critical/High/Medium/Low",\n'
+            + '      "category": "UI/Backend/API/Logic/Performance",\n'
+            + '      "insight": "detailed analysis",\n'
+            + '      "test_coverage_gap": "what test was missing"\n'
+            + '    }\n'
+            + '  ],\n'
+            + '  "test_insights": {\n'
+            + f'    "total_bugs": {total_bugs},\n'
+            + '    "critical_count": 0,\n'
+            + '    "high_count": 0,\n'
+            + '    "patterns_detected": ["pattern 1", "pattern 2"],\n'
+            + '    "most_affected_module": "module name",\n'
+            + '    "coverage_recommendation": "what to test next"\n'
+            + '  }\n'
+            + '}'
+        )
         try:
             result = _call_gemini(prompt)
             result["mode"] = "QA_ONLY"

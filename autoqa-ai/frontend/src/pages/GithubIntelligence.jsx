@@ -83,7 +83,7 @@ export default function GithubIntelligence() {
           <RiGithubFill className={`text-3xl ${githubConnected ? 'text-slate-900' : 'text-slate-300'}`} />
           {!githubConnected && (
             <button 
-              onClick={() => window.location.href = 'http://localhost:5000/auth/github/login'}
+              onClick={() => window.location.href = 'http://localhost:5001/auth/github/login'}
               className="px-4 py-2 bg-slate-900 text-white rounded-xl text-sm font-medium hover:bg-slate-800 transition"
             >
               Connect GitHub
@@ -249,7 +249,7 @@ export default function GithubIntelligence() {
               <div className="animate-in fade-in duration-500">
                 <h4 className="text-lg font-bold text-slate-800 mb-6">Code Quality Observations</h4>
                 <div className="grid gap-4">
-                  {analysis.analysis.code_quality.observations.map((obs, idx) => (
+                  {(analysis.analysis.code_quality.observations || []).map((obs, idx) => (
                     <div key={idx} className="flex gap-4 p-5 bg-blue-50/50 border border-blue-100 rounded-2xl">
                       <RiCheckboxCircleLine className="text-blue-500 text-xl shrink-0 mt-0.5" />
                       <p className="text-slate-700">{obs}</p>
@@ -264,14 +264,14 @@ export default function GithubIntelligence() {
                 <div className="bg-rose-50 border border-rose-200 rounded-2xl p-6 mb-8">
                    <h4 className="text-rose-800 font-bold mb-3 flex items-center gap-2"><RiErrorWarningLine /> High Risk Modules</h4>
                    <div className="flex flex-wrap gap-2">
-                     {analysis.analysis.bugs_and_risks.high_risk_modules.map(m => (
+                     {(analysis.analysis.bugs_and_risks.high_risk_modules || []).map(m => (
                        <span key={m} className="px-3 py-1 bg-rose-200/50 text-rose-700 rounded-lg text-sm font-bold">{m}</span>
                      ))}
                    </div>
                 </div>
                 <h4 className="text-lg font-bold text-slate-800 mb-4">Probable Issues</h4>
                 <div className="space-y-3">
-                  {analysis.analysis.bugs_and_risks.probable_issues.map((bug, i) => (
+                  {(analysis.analysis.bugs_and_risks.probable_issues || []).map((bug, i) => (
                     <div key={i} className="p-4 border border-slate-200 rounded-xl flex gap-3 text-slate-600">
                       <span className="w-6 h-6 bg-slate-100 rounded flex items-center justify-center text-xs font-bold text-slate-400 shrink-0">{i+1}</span>
                       {bug}
@@ -295,8 +295,8 @@ export default function GithubIntelligence() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {analysis.analysis.generated_test_cases.map((tc, idx) => (
-                        <tr key={idx} className="hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => alert(tc.steps.join('\n'))}>
+                      {(analysis.analysis.generated_test_cases || []).map((tc, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => alert((tc.steps || []).join('\n'))}>
                           <td className="px-6 py-4 text-sm font-bold text-blue-600">{tc.module}</td>
                           <td className="px-6 py-4">
                             <p className="text-sm font-bold text-slate-800">{tc.title}</p>
@@ -312,6 +312,53 @@ export default function GithubIntelligence() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'coverage' && (
+              <div className="animate-in fade-in duration-500">
+                <h4 className="text-lg font-bold text-slate-800 mb-6">Test Coverage Analysis</h4>
+                <div className="grid md:grid-cols-2 gap-6 mb-6">
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Test Maturity</p>
+                    <p className="text-xl font-black text-slate-800">{analysis.analysis.test_coverage?.maturity || 'Unknown'}</p>
+                  </div>
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Suggested Frameworks</p>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {(analysis.analysis.test_coverage?.suggested_frameworks || []).map((f, i) => (
+                        <span key={i} className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold">{f}</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <h5 className="text-sm font-bold text-slate-700 mb-3">Missing Test Scenarios</h5>
+                <div className="space-y-3">
+                  {(analysis.analysis.test_coverage?.missing_scenarios || []).map((s, i) => (
+                    <div key={i} className="flex gap-3 p-4 bg-amber-50 border border-amber-100 rounded-xl text-sm text-amber-800">
+                      <RiErrorWarningLine className="text-amber-500 shrink-0 mt-0.5" />
+                      {s}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'tips' && (
+              <div className="animate-in fade-in duration-500">
+                <h4 className="text-lg font-bold text-slate-800 mb-6">Fix Suggestions</h4>
+                <div className="space-y-4">
+                  {(analysis.analysis.fix_suggestions || []).map((fix, i) => (
+                    <div key={i} className="p-5 bg-white border border-slate-200 rounded-2xl shadow-sm space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="w-6 h-6 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-bold shrink-0">{i+1}</span>
+                        <p className="text-sm font-bold text-slate-800">{fix.area}</p>
+                      </div>
+                      <p className="text-sm text-slate-600 ml-8">{fix.suggestion}</p>
+                      {fix.benefit && <p className="text-xs text-emerald-600 font-medium ml-8">Benefit: {fix.benefit}</p>}
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

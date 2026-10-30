@@ -162,7 +162,7 @@ export default function Chatbot() {
 
   const formatDate = (str) => {
     if (!str) return '';
-    const d = new Date(str);
+    const d = new Date(str + 'Z');
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
 

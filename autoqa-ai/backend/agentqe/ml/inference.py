@@ -20,18 +20,15 @@ class TestRanker:
             return []
 
         features = [
-            self.feature_extractor.extract(
-                test
-            )
+            self.feature_extractor.extract(test)
             for test in tests
         ]
 
-        x = torch.tensor(
-            features,
-            dtype=torch.float32
-        )
+        import numpy as np
+        # Convert to single numpy array first — avoids slow tensor-from-list warning
+        x = torch.tensor(np.array(features), dtype=torch.float32)
 
-        # Sequence dimension
+        # Add sequence dimension
         x = x.unsqueeze(0)
 
         with torch.no_grad():

@@ -112,13 +112,10 @@ def generate_code(
         lang, {"ext": "txt", "label": language, "framework_hint": ""}
     )
 
-    prompt = f"""You are a Senior Software Engineer. Write clean, production-ready {
-        cfg['label']} code.
+    prompt = f"""You are a Senior Software Engineer. Write clean, production-ready {cfg['label']} code.
 
-PROJECT CONTEXT: {
-        project_context or 'General purpose'}
-TECH STACK: {
-            tech_stack or cfg['framework_hint']}
+PROJECT CONTEXT: {project_context or 'General purpose'}
+TECH STACK: {tech_stack or cfg['framework_hint']}
 REQUIREMENTS:
 {requirements}
 
@@ -126,26 +123,23 @@ RULES:
 1. Write COMPLETE, runnable code — not pseudocode or stubs
 2. Include proper error handling and input validation
 3. Add inline comments for complex logic
-4. Follow {
-                cfg['label']} best practices and conventions
+4. Follow {cfg['label']} best practices and conventions
 5. Use meaningful variable/function/class names
 6. Include type hints / type annotations where applicable
 7. Structure code properly (imports → constants → classes/functions → main logic)
 8. If it's a class, include __init__ and relevant methods
 9. If it's an API endpoint, include request validation and proper HTTP status codes
 
-Return ONLY clean {
-                    cfg['label']} code. No markdown fences, no explanations before or after."""
+Return ONLY clean {cfg['label']} code. No markdown fences, no explanations before or after."""
 
     raw = _call_gemini(prompt)
     code = _strip_fences(raw, lang)
 
     # Generate filename hint
-    fn_prompt = f"""Suggest a single appropriate filename (with .{
-        cfg['ext']} extension) for this code:
-Requirements: {
-        requirements[
-            :200]}
+    ext = cfg['ext']
+    req_hint = requirements[:200]
+    fn_prompt = f"""Suggest a single appropriate filename (with .{ext} extension) for this code:
+Requirements: {req_hint}
 Return ONLY the filename, nothing else. Example: auth_service.py"""
     try:
         filename = _call_gemini(fn_prompt).strip().strip('"').split()[0]

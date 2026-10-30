@@ -6,22 +6,15 @@ from typing import Any, Dict, Optional
 class ExecutionResult:
     test_id: str
     status: str
-
     duration_ms: float = 0.0
-
     error: Optional[str] = None
-
     coverage: float = 0.0
-
     healed: bool = False
-
     screenshot_path: Optional[str] = None
-
     security_findings: int = 0
-
     metadata: Dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return {
             "test_id": self.test_id,
             "status": self.status,

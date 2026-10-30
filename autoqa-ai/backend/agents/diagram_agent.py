@@ -104,10 +104,8 @@ def generate_diagram(
     """
     dtype = diagram_type.lower()
     if dtype not in DIAGRAM_INSTRUCTIONS:
-        raise ValueError(
-            f"Unknown diagram type '{diagram_type}'. Valid: {
-                list(
-                    DIAGRAM_INSTRUCTIONS.keys())}")
+        valid_types = list(DIAGRAM_INSTRUCTIONS.keys())
+        raise ValueError(f"Unknown diagram type '{diagram_type}'. Valid: {valid_types}")
 
     spec = DIAGRAM_INSTRUCTIONS[dtype]
 
@@ -139,11 +137,10 @@ Return ONLY the raw Mermaid code. Nothing else."""
     code = _clean_mermaid(raw)
 
     # Generate a short description
-    desc_prompt = f"""In one sentence, describe what this {
-        spec['name']} represents for the given requirements.
-Requirements: {
-        requirements[
-            :300]}
+    spec_name = spec['name']
+    req_preview = requirements[:300]
+    desc_prompt = f"""In one sentence, describe what this {spec_name} represents for the given requirements.
+Requirements: {req_preview}
 Return ONLY the one-sentence description."""
     try:
         description = _call_gemini(desc_prompt).strip().strip('"')

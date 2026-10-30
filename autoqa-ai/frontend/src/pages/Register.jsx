@@ -36,14 +36,14 @@ export default function Register() {
     try {
       const res = await register({ username: form.username, email: form.email, password: form.password, role });
       signIn(res.data.token, res.data.user);
-      navigate(res.data.user.role === 'developer' ? '/dev' : '/');
+      navigate('/');
     } catch (err) {
       setError(err.response?.data?.error || 'Registration failed. Please try again.');
     } finally { setLoading(false); }
   };
 
   const handleGithubLogin = () => {
-    window.location.href = 'http://localhost:5000/auth/github/login';
+    window.location.href = 'http://localhost:5001/auth/github/login';
   };
 
   const strength = form.password.length === 0 ? 0 : form.password.length < 6 ? 1 : form.password.length < 10 ? 2 : 3;

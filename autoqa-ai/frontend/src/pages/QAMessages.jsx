@@ -17,11 +17,12 @@ const BOX_TABS = [
 
 const timeAgo = (ts) => {
   if (!ts) return '';
-  const d = (new Date() - new Date(ts)) / 1000;
+  // Append Z so SQLite UTC timestamps are parsed as UTC, not local time
+  const d = (new Date() - new Date(ts + 'Z')) / 1000;
   if (d < 60)    return 'just now';
   if (d < 3600)  return `${Math.round(d/60)}m ago`;
   if (d < 86400) return `${Math.round(d/3600)}h ago`;
-  return new Date(ts).toLocaleDateString();
+  return new Date(ts + 'Z').toLocaleDateString();
 };
 
 export default function QAMessages() {
@@ -251,7 +252,7 @@ export default function QAMessages() {
                       </div>
                       <div>
                         <p className="text-xs font-bold text-slate-700">{msg.sender_name}</p>
-                        <p className="text-[10px] text-slate-400">{new Date(msg.created_at).toLocaleString()}</p>
+                        <p className="text-[10px] text-slate-400">{new Date(msg.created_at + 'Z').toLocaleString()}</p>
                       </div>
                     </div>
                     <div className="bg-white rounded-xl border border-slate-100 p-4 shadow-sm">
@@ -270,7 +271,7 @@ export default function QAMessages() {
                           <p className="text-xs font-bold text-slate-700 flex items-center gap-1">
                             <MdReply className="text-slate-400" /> {r.sender_name}
                           </p>
-                          <p className="text-[10px] text-slate-400">{new Date(r.created_at).toLocaleString()}</p>
+                          <p className="text-[10px] text-slate-400">{new Date(r.created_at + 'Z').toLocaleString()}</p>
                         </div>
                       </div>
                       <div className="ml-8 bg-blue-50 border border-blue-100 rounded-xl p-3">

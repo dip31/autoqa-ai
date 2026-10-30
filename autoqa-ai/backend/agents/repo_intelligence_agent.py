@@ -37,7 +37,7 @@ class RepoIntelligenceAgent:
         for f in hero_files:
             content = self.gh.get_file_content(owner, repo, f, branch)
             if content:
-                file_contents[f] = content[:8000]  # Cap content for LLM
+                file_contents[f] = content[:3000]  # Cap per file to stay under TPM
 
         # 4. Perform AI Analysis
         analysis = self._run_ai_analysis(metadata, file_paths, file_contents)
@@ -72,22 +72,24 @@ class RepoIntelligenceAgent:
             pattern = re.compile(p, re.IGNORECASE)
             matches = [f for f in paths if pattern.search(f)]
             heroes.extend(matches[:3])  # Take top 3 matches per pattern
-        return list(set(heroes))
+        return list(set(heroes))[:5]  # Max 5 files to stay under token limit
 
     def _run_ai_analysis(self, metadata, file_paths, file_contents):
         # Concatenate hero content for context
-        context = f"Repo: {
-            metadata.get('full_name')}\nDesc: {
-            metadata.get('description')}\nLang: {
-            metadata.get('language')}\n\n"
+        repo_name = metadata.get('full_name', '')
+        repo_desc = metadata.get('description', '')
+        repo_lang = metadata.get('language', '')
+        context = f"Repo: {repo_name}\nDesc: {repo_desc}\nLang: {repo_lang}\n\n"
         for f, content in file_contents.items():
             context += f"--- FILE: {f} ---\n{content}\n\n"
+        # Hard cap total context to avoid token limit errors
+        context = context[:6000]
 
         prompt = f"""
         Analyze this repository as a Senior QA and Software Architect.
 
         Repository Structure (Sample):
-        {json.dumps(file_paths[:100], indent=2)}
+        {json.dumps(file_paths[:60], indent=2)}
 
         Key File Contents:
         {context}

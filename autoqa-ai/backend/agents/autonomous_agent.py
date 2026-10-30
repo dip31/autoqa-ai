@@ -233,9 +233,10 @@ class SelfHealingEngine:
                     raise Exception(f"Expected text not found: '{value}'")
             elif action == "check_url":
                 if value and str(value).lower() not in self.page.url.lower():
+                    current_url = self.page.url
                     raise Exception(
-                        f"URL mismatch — expected '{value}' in '{
-                            self.page.url}'")
+                        f"URL mismatch — expected '{value}' in '{current_url}'"
+                    )
             elif action == "count":
                 if len(self.page.query_selector_all(selector)) == 0:
                     raise Exception(f"No elements matched: {selector}")
@@ -301,15 +302,10 @@ class SelfHealingEngine:
         ctx_tok = tok(context)
         best = None
         for c in candidates:
-            blob = f"{
-                c['text']} {
-                c['id']} {
-                c['name']} {
-                c['aria']} {
-                    c['ph']} {
-                        c['cls']} {
-                            c['href']} {
-                                c['tid']}"
+            blob = (
+                f"{c['text']} {c['id']} {c['name']} {c['aria']} "
+                f"{c['ph']} {c['cls']} {c['href']} {c['tid']}"
+            )
             btok = tok(blob)
             score = min(
                 len(sel_tok & btok) * 0.30 + len(ctx_tok & btok) * 0.15, 1.0
@@ -482,6 +478,7 @@ def _generate_rich_cases(scope: dict, page_data: dict, count: int) -> list:
         "has_cart": page_data.get("has_cart", False),
     }
     dist = _category_distribution(count)
+    h1_value = page_data.get('h1', '')
 
     prompt = f"""You are a Senior QA Engineer. Generate EXACTLY {count} professional test cases for this website.
 
@@ -498,31 +495,20 @@ RULES:
 1. Generate EXACTLY {count} test cases, no more, no less.
 2. Base selectors on REAL elements visible in the crawl above.
 3. Any test requiring login credentials, payment data, or unavailable state:
-   → set automatable=false, blocked_reason="Requires authentication/test data"
+   set automatable=false, blocked_reason="Requires authentication/test data"
 4. For automatable=true cases: provide a working Playwright-compatible selector.
 5. Write professional QA documentation — detailed steps, clear objectives.
 6. Cover: Functional, Negative, Boundary, Validation, Navigation, UI/Visible,
           Form Submission, Error Handling, Edge Cases, Usability.
 7. Use realistic input_data values (e.g. "user@test.com", "password123", "", "a"*256).
 
-Return a JSON array of EXACTLY {count} objects with this structure:
-{"id": "TC-001",
-  "title": "Verify Homepage Title and Branding Are Correct",
-  "objective": "Ensure the page title and main heading match expected brand identity",
-  "module": "UI/Branding",
-  "preconditions": "Browser is open, website URL is accessible",
-  "input_data": "N/A",
-  "steps": ["1. Navigate to homepage URL", "2. Check browser tab title", "3. Verify H1 heading text"],
-  "expected_result": "Browser tab shows correct title; H1 matches brand name",
-  "priority": "High",
-  "category": "UI/Visible",
-  "tags": ["smoke", "ui", "regression"],
-  "automatable": true,
-  "blocked_reason": null,
-  "action": "check_text",
-  "selector": "h1",
-  "action_value": "{page_data.get('h1', '')}"
-}
+Return a JSON array of EXACTLY {count} objects. Each object must have these fields:
+id, title, objective, module, preconditions, input_data, steps (array),
+expected_result, priority, category, tags (array), automatable (bool),
+blocked_reason (null or string), action, selector, action_value.
+
+Example object:
+{{"id": "TC-001", "title": "Verify Homepage Title", "objective": "Check page title", "module": "UI", "preconditions": "Browser open", "input_data": "N/A", "steps": ["1. Navigate to URL", "2. Check title"], "expected_result": "Title is correct", "priority": "High", "category": "UI/Visible", "tags": ["smoke"], "automatable": true, "blocked_reason": null, "action": "check_text", "selector": "h1", "action_value": "{h1_value}"}}
 
 Return ONLY the JSON array."""
     try:
@@ -589,8 +575,7 @@ def _execute_test_pipeline(
             _log(
                 run_id,
                 "BROWSER_ACTION",
-                f"Page loaded — '{title}'. {
-                    len(test_cases)} test cases queued.",
+                f"Page loaded — '{title}'. {len(test_cases)} test cases queued.",
                 "SUCCESS",
                 url=url,
             )
@@ -1042,13 +1027,7 @@ def run_autonomous_qa(run_id: int):
         _log(
             run_id,
             "ANALYSIS",
-            f"Requirement analysis complete. Module: {
-                scope.get('detected_module_type')} | " f"Priority: {
-                scope['priority']} | Key flows: {
-                ', '.join(
-                    scope.get(
-                        'key_user_flows',
-                        []))}",
+            f"Requirement analysis complete. Module: {scope.get('detected_module_type')} | Priority: {scope['priority']} | Key flows: {', '.join(scope.get('key_user_flows', []))}",
         )
 
         # Step 3 — Generate test cases
@@ -1059,8 +1038,7 @@ def run_autonomous_qa(run_id: int):
         _log(
             run_id,
             "GENERATION",
-            f"Generating {
-                cfg['count']} professional test cases in '{mode}' mode…",
+            f"Generating {cfg['count']} professional test cases in '{mode}' mode…",
         )
         test_cases = _generate_rich_cases(scope, page_data, cfg["count"])
 

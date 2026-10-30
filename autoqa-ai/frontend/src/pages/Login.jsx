@@ -55,7 +55,7 @@ export default function Login() {
   };
 
   const handleGithubLogin = () => {
-    window.location.href = 'http://localhost:5000/auth/github/login';
+    window.location.href = 'http://localhost:5001/auth/github/login';
   };
 
   return (

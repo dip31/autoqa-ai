@@ -3,37 +3,60 @@ from typing import Any, Dict, List, Optional
 
 
 @dataclass
-class TestCase:
+class CandidateTest:
     test_id: str
-    scenario: str
-    case_type: str
-    expected_result: str = ""
-    priority: str = "MEDIUM"
-
+    title: str
+    description: str = ""
     perspective: str = "USER"
-
-    source: str = ""
-    steps: List[Dict[str, Any]] = field(default_factory=list)
-
-    features: List[float] = field(default_factory=list)
-
+    test_type: str = "UI"
+    target: str = ""
+    priority: str = "Medium"
+    category: str = ""
+    steps: List = field(default_factory=list)
+    input_data: str = ""
+    expected_result: str = ""
+    automatable: bool = True
+    blocked_reason: Optional[str] = None
+    source_agent: str = ""
+    evidence: Dict = field(default_factory=dict)
+    metadata: Dict = field(default_factory=dict)
+    risk_score: float = 0.5
+    historical_pass_rate: float = 0.0
+    historical_failure_rate: float = 0.0
+    execution_cost: float = 3.0
+    change_impact: float = 0.5
+    coverage_gain: float = 0.5
     transformer_score: float = 0.0
-    selected: bool = False
+    final_score: float = 0.0
 
-    metadata: Dict[str, Any] = field(default_factory=dict)
-
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return {
             "test_id": self.test_id,
-            "scenario": self.scenario,
-            "case_type": self.case_type,
-            "expected_result": self.expected_result,
-            "priority": self.priority,
+            "title": self.title,
+            "description": self.description,
             "perspective": self.perspective,
-            "source": self.source,
+            "test_type": self.test_type,
+            "target": self.target,
+            "priority": self.priority,
+            "category": self.category,
             "steps": self.steps,
-            "features": self.features,
-            "transformer_score": self.transformer_score,
-            "selected": self.selected,
+            "input_data": self.input_data,
+            "expected_result": self.expected_result,
+            "automatable": self.automatable,
+            "blocked_reason": self.blocked_reason,
+            "source_agent": self.source_agent,
+            "evidence": self.evidence,
             "metadata": self.metadata,
+            "risk_score": self.risk_score,
+            "historical_pass_rate": self.historical_pass_rate,
+            "historical_failure_rate": self.historical_failure_rate,
+            "execution_cost": self.execution_cost,
+            "change_impact": self.change_impact,
+            "coverage_gain": self.coverage_gain,
+            "transformer_score": self.transformer_score,
+            "final_score": self.final_score,
         }
+
+
+# Legacy alias for backward compatibility
+TestCase = CandidateTest

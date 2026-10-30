@@ -5,9 +5,10 @@ import {
   MdOutlineLanguage, MdOutlineAutoAwesome,
   MdOutlineAssessment, MdClose,
   MdLogout, MdPersonOutline, MdOutlineHubOutlined, MdOutlineEmail,
+  MdOutlineSecurity
 } from 'react-icons/md';
 import { TbBrandReact } from 'react-icons/tb';
-import { RiGithubFill } from 'react-icons/ri';
+import { RiGithubFill, RiMagicLine } from 'react-icons/ri';
 import { useAuth } from '../context/AuthContext';
 
 const navItems = [
@@ -15,10 +16,12 @@ const navItems = [
   { path: '/github-intelligence', label: 'GitHub Intelligence', icon: RiGithubFill },
   { path: '/test-review',     label: 'Test Case Review', icon: MdOutlineFactCheck },
   { path: '/website-testing', label: 'Website Testing',  icon: MdOutlineLanguage },
+  { path: '/agentqe',         label: 'AgentQE ML',       icon: RiMagicLine },
   { path: '/autonomous-qa',   label: 'Autonomous QA',    icon: MdOutlineAutoAwesome },
   { path: '/test-generator',  label: 'Test Generator',   icon: MdOutlineAutoAwesome },
   { path: '/smart-report',    label: 'Smart Report',     icon: MdOutlineAssessment },
   { path: '/messages',        label: 'Messages',          icon: MdOutlineEmail },
+  { path: '/security',        label: 'Security',          icon: MdOutlineSecurity },
 ];
 
 export default function Sidebar({ onClose }) {
